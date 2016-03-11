@@ -11,6 +11,8 @@ use Model;
  */
 class MailSettings extends Model
 {
+    use \October\Rain\Database\Traits\Validation;
+
     public $implement = ['System.Behaviors.SettingsModel'];
 
     public $settingsCode = 'system_mail_settings';
@@ -21,6 +23,15 @@ class MailSettings extends Model
     const MODE_SENDMAIL = 'sendmail';
     const MODE_SMTP     = 'smtp';
     const MODE_MAILGUN  = 'mailgun';
+    const MODE_MANDRILL = 'mandrill';
+
+    /*
+     * Validation rules
+     */ 
+    public $rules = [
+        'sender_name'  => 'required',
+        'sender_email' => 'required|email'
+    ];
 
     public function initSettingsData()
     {
@@ -33,7 +44,8 @@ class MailSettings extends Model
         $this->smtp_port = $config->get('mail.port', 587);
         $this->smtp_user = $config->get('mail.username');
         $this->smtp_password = $config->get('mail.password');
-        $this->smtp_authorization = strlen($this->smtp_user);
+        $this->smtp_authorization = !!strlen($this->smtp_user);
+        $this->smtp_encryption = $config->get('mail.encryption');
     }
 
     public function getSendModeOptions()
@@ -44,6 +56,7 @@ class MailSettings extends Model
             static::MODE_SENDMAIL => 'system::lang.mail.sendmail',
             static::MODE_SMTP     => 'system::lang.mail.smtp',
             static::MODE_MAILGUN  => 'system::lang.mail.mailgun',
+            static::MODE_MANDRILL => 'system::lang.mail.mandrill',
         ];
     }
 
@@ -68,6 +81,12 @@ class MailSettings extends Model
                     $config->set('mail.username', null);
                     $config->set('mail.password', null);
                 }
+                if ($settings->smtp_encryption) {
+                    $config->set('mail.encryption', $settings->smtp_encryption);
+                }
+                else {
+                    $config->set('mail.encryption', null);
+                }
                 break;
 
             case self::MODE_SENDMAIL:
@@ -78,7 +97,24 @@ class MailSettings extends Model
                 $config->set('services.mailgun.domain', $settings->mailgun_domain);
                 $config->set('services.mailgun.secret', $settings->mailgun_secret);
                 break;
+
+            case self::MODE_MANDRILL:
+                $config->set('services.mandrill.secret', $settings->mandrill_secret);
+                break;
         }
 
+    }
+
+
+    /**
+     * @return array smtp_encryption options values
+     */
+    public function getSmtpEncryptionOptions()
+    {
+        return [
+            '' => 'system::lang.mail.smtp_encryption_none',
+            'tls' => 'system::lang.mail.smtp_encryption_tls',
+            'ssl' => 'system::lang.mail.smtp_encryption_ssl',
+        ];
     }
 }

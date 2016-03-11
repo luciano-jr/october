@@ -1,3 +1,191 @@
+* **Build 317** (2015-02-24)
+  - The `/404` route now returns 404 HTTP response code as it should.
+  - Updated the `.htaccess` file with a minor security precaution.
+
+* **Build 316** (2015-02-11)
+  - Various back-end UI enhancements used for the [Builder plugin](http://octobercms.com/plugin/rainlab-builder).
+
+* **Build 313** (2015-12-12)
+  - Added a `clickable` option to list columns (see Backend > Lists docs).
+
+* **Build 310** (2015-11-28)
+  - The Relation form widget now supports custom SQL with the `select` options, also `nameFrom` supports taking values from model attributes (see Backend > Forms docs).
+  - Added Refresh buttons to the back-end logging pages.
+
+* **Build 305** (2015-10-17)
+  - The Inspector control has been dramatically improved.
+
+* **Build 304** (2015-10-09)
+  - Added new `where` and `whereComponent` methods for querying CMS template properties.
+
+* **Build 300** (2015-10-03)
+  - **Happy 2nd Birthday October!**
+  - Page settings now support infinite array nesting with October flavored INI syntax via `Ini::parse` and `Ini::render`.
+  - Added new helper `Twig::parse` for parsing Twig (see Services > Parser docs).
+
+* **Build 298** (2015-09-24)
+  - Added the ability to use a wildcard URL parameter in CMS pages (see CMS > Pages docs).
+
+* **Build 297** (2015-09-19)
+  - Introduced new `Revisionable` trait for storing model history (see Database > Traits docs).
+  - Added `timetense` list column type (see Backend > Lists docs), along with `|time_since` and `|time_tense` Twig filters.
+  - Fixed a bug in deferred binding that allowed repeat bindings and ignored add/delete pairs.
+
+* **Build 293** (2015-09-07)
+  - Corrected a flaw in the Behavior/Extension logic that previously made protected methods and properties accessible as if they were public.
+
+* **Build 292** (2015-08-28)
+  - Added a new controller method `fireViewEvent()` for extending views and partials (see Plugins > Events docs).
+  - Fixes a bug where the database falls asleep during an update.
+
+* **Build 290** (2015-08-15)
+  - Added test base class for developers who want to test their plugins with phpunit. See the readme file in the **tests/** directory for more details.
+
+* **Build 289** (2015-08-07)
+  - Added new `makeFormWidget()` method to `WidgetMaker` trait for rendering form widgets individually. This method is now available to backend controllers, controller behaviors and widgets themselves. Check to make sure your classes do not define a conflicting method of this name.
+
+* **Build 287** (2015-08-03)
+  - Introduced new **MarkdownEditor** form widget (see Backend > Forms docs).
+
+* **Build 284** (2015-07-25)
+  - Introduced new **ImportExport** controller behavior.
+  - The `export` action has been moved from ListController behavior to Import / Export behavior (see Backend > Importing & Exporting docs).
+
+* **Build 279** (2015-07-14)
+  - Plugins can now be frozen to prevent them from receiving updates via the plugin management area.
+  - A plugin version can now be flagged as "Important" by prepending `!!!` to the version history comment.
+
+* **Build 275** (2015-07-04)
+  - List columns now support specifying a `default` option used when the value would otherwise be null.
+  - Implement a custom autoloader for plugins that use composer. Now only one instance of composer is used, all packages are now added to a global pool to prevent double loading and the load order is respected.
+  - The method signature of `Model::save()` has been fixed to match Eloquent.
+  - Added new security config option `cms.enableCsrfProtection`.
+
+* **Build 272** (2015-06-27)
+  - Protected images and their thumbnails are now supported in the back-end.
+  - Editing CMS templates now support form fields that use AJAX.
+  - When inserting a new link the Rich Editor now shows a drop-down list with available pages.
+
+* **Build 271** (2015-06-20)
+  - File Upload form widget can now specify `mimeTypes` to define MIME types that are accepted by the uploader, either as file extension or fully qualified name.
+
+* **Build 270** (2015-06-18)
+  - Introduced the October Storm client-side library.
+  - Introduced new **MediaFinder** form widget.
+  - Improved the back-end administrator permissions and `RelationController` UI.
+  - The page setting `hidden` has been renamed to `is_hidden`, this setting may need to be reapplied for some themes.
+  - `FileUpload` form widget has been rebuilt from scratch, it now uses an interface similar to the Media Manager (see Backend > Forms docs).
+
+* **Build 260** (2015-05-16)
+  - The `|page` filter now supports passing an empty string to generate a link to the current page.
+
+* **Build 258** (2015-05-09)
+  - The hotkey for full screen mode is now Cmd+Shift+F or Ctrl+Shift+F in Windows.
+
+* **Build 252** (2015-04-29)
+  - Optimized many JavaScript libraries used in the back-end to reduce memory leaks.
+
+* **Build 250** (2015-04-28)
+  - Protected files can now be downloaded by administrators using the `fileupload` form widget.
+  - The `{% content %}` tag now supports passing parameters, parsed by a basic template engine (see Cms > Content block docs).
+
+* **Build 247** (2015-04-23)
+  - Added Media Manager feature.
+
+* **Build 246** (2015-04-21)
+  - Adds experimental command `october:mirror` for generating symbolic links in a public directory.
+  - Various performance improvements.
+
+* **Build 239** (2015-04-06)
+  - Installing plugins has a new interface and themes can now be installed using the back-end.
+
+* **Build 236** (2015-03-28)
+  - Default context of `manage` and `pivot` forms is now *create* and *update* respectively, instead of the old value *relation*. Use the `context` option to set it back to the old value (see Backend > Relations docs).
+
+* **Build 229** (2015-03-19)
+  - Belongs-to-many model relations now support defining a custom pivot model with the `pivotModel` option (see Database > Model docs).
+  - The config definitions for behavior `RelationController` have been refactored. When using `pivot` mode all columns and fields should now reside in a `pivot[]` array (see Backend > Relations docs).
+  - Record Finder form widget now supports nested attributes for relations.
+  - List columns now support using array names (eg: `relation[attribute]`) which acts as an alias for the `valueFrom` option with `searchable` and `sortable` disabled.
+
+* **Build 226** (2015-03-16)
+  - Form Tabs now support specifying a default tab using the `defaultTab` option (see Backend > Forms docs).
+  - Improved the Theme management features: Edit properties, import, export, duplicate and delete.
+
+* **Build 222** (2015-03-11)
+  - Form fields can now use a simpler interface for using the Input preset converter (see Backend > Forms docs).
+  - The event `cms.page.init` no longer passes the URL as the third parameter, `$controller->getRouter()->getUrl()` should be used instead.
+  - `Page::url()` no longer takes a third argument for `$absolute`, generated URLs with this method are always absolute.
+
+* **Build 217** (2015-03-06)
+  - Improvements made to the user menu in the back-end: clicking your avatar will display a popover with settings links from the `mysettings` context.
+  - Added new form field widget called `repeater` for repeatable fields (see Backend > Forms docs).
+  - Made some UI improvements to the Rich Editor.
+  - Form widget base class no longer takes a model as the 2nd argument, it should be passed as `model` in the configuration instead.
+
+* **Build 214** (2015-03-03)
+  - Introduce `AjaxException` that allows response contents to be sent to framework.js and still be treated as an error.
+
+* **Build 211** (2015-02-29)
+  - Report Widgets now support the use of AJAX event handlers.
+
+* **Build 210** (2015-02-28)
+  - Fixes an intermittent issue where a `CmsXXX_XXXClass` cache class cannot be found and throws a fatal error.
+
+* **Build 209** (2015-02-25)
+  - Added new form field type `section` for dividing groups of other fields (see Backend > Forms docs).
+
+* **Build 206** (2015-02-21)
+  - The back-end code editor now supports the use of [Emmet](http://emmet.io/).
+  - Added the ability to prune Event and Request log records.
+
+* **Build 199** (2015-02-19)
+  - The **/uploads** directory has been moved to **/storage/app/uploads** to make way for CDN support. This directory should be moved on the file system and the config (`cms.storage.uploads.path`) updated.
+
+* **Build 192** (2015-02-14)
+  - For security reasons a vague error message is shown when a user tries to sign in unsuccessfully and the setting `app.debug` is disabled.
+  - Added "Auto close tags and special characters" to Code editor preferences.
+
+* **Build 187** (2015-02-12)
+  - **Upgraded framework to Laravel version 5**, see the [end of beta page](http://octobercms.com/beta#advanced-upgrade) for information on how to upgrade.
+  - Introduced a linking policy to control the way URLs are generated globally (see config `cms.linkPolicy`).
+  - Popup control now supports several sizes via `data-size` attribute: giant, huge, large, small, tiny.
+  - Added new scaffold command for creating form widgets `create:formwidget Acme.Blog PostSelector`.
+
+* **Build 186** (2015-02-03)
+  - File Upload form widget can now specify `fileTypes` for restricting which file extensions can be uploaded.
+
+* **Build 184** (2015-01-31)
+  - Lists now support exporting to CSV format via the default **export** controller action.
+  - Platforms can *opt-in* for bleeding edge updates by enabling a config setting (`cms.edgeUpdates`), this helps perform testing before a stable version is deployed.
+
+* **Build 183** (2015-01-22)
+  - Relation Controller now supports *has one* and *belongs to* relations (see Backend > Relations docs).
+
+* **Build 179** (2015-01-18)
+  - The Settings page is no longer governed by a global permission, each settings entry should have its own permission definition.
+
+* **Build 178** (2015-01-16)
+  - The collapsed back-end side navigation now has a less annoying 200ms delay.
+
+* **Build 175** (2015-01-13)
+  - The variable `errors` will be included in a CMS page when redirecting via `Redirect::withErrors($validator)`.
+  - Added new utility command for compiling back-end assets `october:util compile [assets|js|less]`.
+
+* **Build 174** (2015-01-05)
+  - Improved asset caching (`cms.enableAssetCache`), when enabled the server will send a *304 Not Modified* header.
+  - Introduced new *Table* widget and *DataTable* form widget.
+  - There is now a simpler way for sending mail via `Mail::sendTo()`.
+  - The List Filter query can now be extended with controller override `listFilterExtendQuery()`.
+
+* **Build 171** (2014-12-17)
+  - Add new methods `propertyName()` and `paramName()` to Component base class for accessing names of external properties.
+
+* **Build 169** (2014-12-16)
+  - Native `alert` and `confirm` functions have been styled in the back-end.
+  - Back-end user groups have a new description field, this is shown in the group list and when creating a new administrator.
+  - Back-end user groups can now be marked to add new administrators by default. This affects when a group is created (if checked, all administrators are added to the group) and creating a new administrator (the default groups are checked by default).
+
 * **Build 168** (2014-12-14)
   - Config item `cms.customErrorPage` is deprecated, the setting `app.debug` should be used instead.
   - Config item `cms.enableAssetMinify` can now be set to **null**, in which case assets are only minified if debug mode (`app.debug`) is disabled.
@@ -187,7 +375,6 @@
   - Fixes an issue where paid plugins could not be downloaded.
 
 * **Build 84** (2014-05-20)
-  - A temporary directory can now be specified in config (see config cms.tempDir).
   - Default AJAX error message can now be overridden (see `ajaxErrorMessage` jQuery event).
   - SQLite support has been improved using new `October\Rain\Database\Dongle` class.
   - Included `doctrine/dbal` for supporting SQLite.

@@ -7,7 +7,7 @@ use Cms\Classes\Layout;
 use Cms\Classes\Controller;
 use Cms\Classes\CmsException;
 use Cms\Classes\CodeParser;
-use System\Classes\SystemException;
+use October\Rain\Exception\SystemException;
 
 class CmsExceptionTest extends TestCase
 {
@@ -45,31 +45,6 @@ class CmsExceptionTest extends TestCase
     //
     // Tests
     //
-
-    public function testProcessCompoundObject()
-    {
-        $this->markTestIncomplete('TODO');
-    }
-
-    public function testProcessIni()
-    {
-        $this->markTestIncomplete('TODO');
-    }
-
-    public function testProcessPhp()
-    {
-        $this->markTestIncomplete('TODO');
-    }
-
-    public function testProcessTwig()
-    {
-        $this->markTestIncomplete('TODO');
-    }
-
-    public function testApplyMask()
-    {
-        $this->markTestIncomplete('TODO');
-    }
 
     public function testExceptionMask()
     {

@@ -3,7 +3,7 @@
 use Str;
 use Illuminate\Container\Container;
 use System\Classes\PluginManager;
-use System\Classes\SystemException;
+use SystemException;
 
 /**
  * Component manager
@@ -198,14 +198,14 @@ class ComponentManager
         $className = $this->resolve($name);
         if (!$className) {
             throw new SystemException(sprintf(
-                'Class name is not registered for the component %s. Check the component plugin.',
+                'Class name is not registered for the component "%s". Check the component plugin.',
                 $name
             ));
         }
 
         if (!class_exists($className)) {
             throw new SystemException(sprintf(
-                'Component class not found %s.Check the component plugin.',
+                'Component class not found "%s". Check the component plugin.',
                 $className
             ));
         }

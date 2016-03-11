@@ -1,9 +1,13 @@
 <?php
 
-/*
+/**
  * Register Backend routes before all user routes.
  */
 App::before(function ($request) {
+    /*
+     * Extensibility
+     */
+    Event::fire('backend.beforeRoute');
 
     /*
      * Other pages
@@ -17,4 +21,8 @@ App::before(function ($request) {
      */
     Route::any(Config::get('cms.backendUri', 'backend'), 'Backend\Classes\BackendController@run');
 
+    /*
+     * Extensibility
+     */
+    Event::fire('backend.route');
 });

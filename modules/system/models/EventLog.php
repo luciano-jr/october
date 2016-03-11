@@ -1,7 +1,9 @@
 <?php namespace System\Models;
 
 use Str;
-use Model;
+use DbDongle;
+use October\Rain\Database\Model;
+use Exception;
 
 /**
  * Model for logging system errors and debug trace messages
@@ -11,7 +13,6 @@ use Model;
  */
 class EventLog extends Model
 {
-
     /**
      * @var string The database table used by the model.
      */
@@ -21,6 +22,20 @@ class EventLog extends Model
      * @var array List of attribute names which are json encoded and decoded from the database.
      */
     protected $jsonable = ['details'];
+
+    /**
+     * Returns true if this logger should be used.
+     * @return bool
+     */
+    public static function useLogging()
+    {
+        return (
+            class_exists('Model') &&
+            Model::getConnectionResolver() &&
+            DbDongle::hasDatabase() &&
+            !defined('OCTOBER_NO_EVENT_LOGGING')
+        );
+    }
 
     /**
      * Creates a log record
@@ -39,7 +54,10 @@ class EventLog extends Model
             $record->details = (array) $details;
         }
 
-        $record->save();
+        try {
+            $record->save();
+        }
+        catch (Exception $ex) {}
 
         return $record;
     }

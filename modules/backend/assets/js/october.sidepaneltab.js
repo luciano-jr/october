@@ -14,9 +14,11 @@
         var self = this
         this.tabOpenDelay = 200
         this.tabOpenTimeout = undefined
-        this.$sideNavItems = $('#layout-sidenav ul li')
+        this.panelOpenTimeout = undefined
+        this.$sideNav = $('#layout-sidenav')
+        this.$sideNavItems = $('ul li', this.$sideNav)
         this.$sidePanelItems = $('[data-content-id]', this.$el)
-        this.sideNavWidth = $('#layout-sidenav ul li').outerWidth()
+        this.sideNavWidth = this.$sideNavItems.outerWidth()
         this.mainNavHeight = $('#layout-mainmenu').outerHeight()
         this.panelVisible = false
         this.visibleItemId = false
@@ -29,6 +31,10 @@
         $('.fix-button-container', this.$el).append(this.$fixButton)
 
         this.$sideNavItems.click(function(){
+            if ($(this).data('no-side-panel')) {
+                return
+            }
+
             if (Modernizr.touch && $(window).width() < self.options.breakpoint) {
                 if ($(this).data('menu-item') == self.visibleItemId && self.panelVisible) {
                     self.hideSidePanel()
@@ -43,9 +49,19 @@
         })
 
         if (!Modernizr.touch) {
-            $('#layout-sidenav').mouseenter(function(){
-               if ($(window).width() < self.options.breakpoint || !self.panelFixed())
-                    self.displaySidePanel()
+            // The side panel now opens only when a menu item is hovered and
+            // when the item doesn't have the "data-no-side-panel" attribute.
+            // TODO: remove the comment and the code below if no issues noticed.
+            // self.$sideNav.mouseenter(function(){
+            //     if ($(window).width() < self.options.breakpoint || !self.panelFixed()) {
+            //         self.panelOpenTimeout = setTimeout(function () {
+            //             self.displaySidePanel()
+            //         }, self.tabOpenDelay)
+            //     }
+            // })
+
+            self.$sideNav.mouseleave(function(){
+                clearTimeout(self.panelOpenTimeout)
             })
 
             self.$el.mouseleave(function(){
@@ -54,8 +70,14 @@
 
             self.$sideNavItems.mouseenter(function(){
                 if ($(window).width() < self.options.breakpoint || !self.panelFixed()) {
+                    if ($(this).data('no-side-panel')) {
+                        self.hideSidePanel()
+                        return
+                    }
+
                     var _this = this
                     self.tabOpenTimeout = setTimeout(function () {
+                        self.displaySidePanel()
                         self.displayTab(_this)
                     }, self.tabOpenDelay)
                 }
@@ -64,7 +86,6 @@
             self.$sideNavItems.mouseleave(function (){
                 clearTimeout(self.tabOpenTimeout)
             })
-
 
             $(window).resize(function() {
                 self.updatePanelPosition()
@@ -117,8 +138,9 @@
 
     SidePanelTab.prototype.hideSidePanel = function() {
         $(document.body).removeClass('display-side-panel')
-        if (this.$el.next('#layout-body').length == 0)
+        if (this.$el.next('#layout-body').length == 0) {
             $('#layout-body').before(this.$el)
+        }
 
         this.panelVisible = false
 
@@ -126,25 +148,30 @@
     }
 
     SidePanelTab.prototype.updatePanelPosition = function() {
-        if (!this.panelFixed() || Modernizr.touch)
+        if (!this.panelFixed() || Modernizr.touch) {
             this.$el.height($(document).height() - this.mainNavHeight)
-        else 
+        }
+        else {
             this.$el.css('height', '')
+        }
 
-        if (this.panelVisible && $(window).width() > this.options.breakpoint && this.panelFixed())
+        if (this.panelVisible && $(window).width() > this.options.breakpoint && this.panelFixed()) {
             this.hideSidePanel()
+        }
     }
 
     SidePanelTab.prototype.updateActiveTab = function() {
-        if (!this.panelVisible && ($(window).width() < this.options.breakpoint || !this.panelFixed()))
+        if (!this.panelVisible && ($(window).width() < this.options.breakpoint || !this.panelFixed())) {
             this.$sideNavItems.removeClass('active')
+        }
         else {
             this.$sideNavItems.filter('[data-menu-item='+this.visibleItemId+']').addClass('active')
         }
     }
 
     SidePanelTab.prototype.panelFixed = function() {
-        return !$(document.body).hasClass('side-panel-not-fixed')
+        return !($(window).width() < this.options.breakpoint) &&
+            !$(document.body).hasClass('side-panel-not-fixed')
     }
 
     SidePanelTab.prototype.fixPanel = function() {
@@ -183,7 +210,7 @@
             var data = $this.data('oc.sidePanelTab')
             var options = $.extend({}, SidePanelTab.DEFAULTS, $this.data(), typeof option == 'object' && option)
             if (!data) $this.data('oc.sidePanelTab', (data = new SidePanelTab(this, options)))
-            if (typeof option == 'string') data[option].call($this)
+            if (typeof option == 'string') data[option].call(data)
         })
     }
 

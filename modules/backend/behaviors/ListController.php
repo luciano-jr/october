@@ -3,8 +3,10 @@
 use Str;
 use Lang;
 use Event;
-use System\Classes\SystemException;
+use ApplicationException;
 use Backend\Classes\ControllerBehavior;
+use League\Csv\Writer;
+use SplTempFileObject;
 
 /**
  * List Controller Behavior
@@ -15,7 +17,6 @@ use Backend\Classes\ControllerBehavior;
  */
 class ListController extends ControllerBehavior
 {
-
     /**
      * @var array List definitions, keys for alias and value for configuration.
      */
@@ -56,7 +57,6 @@ class ListController extends ControllerBehavior
     /**
      * Behavior constructor
      * @param Backend\Classes\Controller $controller
-     * @return void
      */
     public function __construct($controller)
     {
@@ -213,8 +213,14 @@ class ListController extends ControllerBehavior
              * Filter the list when the scopes are changed
              */
             $filterWidget->bindEvent('filter.update', function () use ($widget, $filterWidget) {
-                $widget->addFilter([$filterWidget, 'applyAllScopesToQuery']);
                 return $widget->onRefresh();
+            });
+
+            /*
+             * Extend the query of the list of options
+             */
+            $filterWidget->bindEvent('filter.extendQuery', function($query, $scope) {
+                $this->controller->listFilterExtendQuery($query, $scope);
             });
 
             // Apply predefined filter values
@@ -232,7 +238,7 @@ class ListController extends ControllerBehavior
      */
     public function index()
     {
-        $this->controller->pageTitle = $this->controller->pageTitle ?: trans($this->getConfig(
+        $this->controller->pageTitle = $this->controller->pageTitle ?: Lang::get($this->getConfig(
             'title',
             'backend::lang.list.default_title'
         ));
@@ -248,7 +254,7 @@ class ListController extends ControllerBehavior
     public function listRender($definition = null)
     {
         if (!count($this->listWidgets)) {
-            throw new SystemException(Lang::get('backend::lang.list.behavior_not_ready'));
+            throw new ApplicationException(Lang::get('backend::lang.list.behavior_not_ready'));
         }
 
         if (!$definition || !isset($this->listDefinitions[$definition])) {
@@ -352,6 +358,16 @@ class ListController extends ControllerBehavior
     }
 
     /**
+     * Controller override: Extend the query used for populating the filter 
+     * options before the default query is processed.
+     * @param October\Rain\Database\Builder $query
+     * @param array $scope
+     */
+    public function listFilterExtendQuery($query, $scope)
+    {
+    }
+
+    /**
      * Returns a CSS class name for a list row (<tr class="...">).
      * @param  Model $record The populated model used for the column
      * @param  string $definition List definition (optional)
@@ -394,7 +410,7 @@ class ListController extends ControllerBehavior
             if (!is_a($widget->getController(), $calledClass)) {
                 return;
             }
-            $callback($widget, $widget->model);
+            call_user_func_array($callback, [$widget, $widget->model]);
         });
     }
 }

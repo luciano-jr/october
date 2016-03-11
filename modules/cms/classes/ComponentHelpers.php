@@ -11,24 +11,29 @@ use Lang;
 class ComponentHelpers
 {
     /**
-     * Returns a component property configuration as a JSON string.
+     * Returns a component property configuration as a JSON string or array.
      * @param mixed $component The component object
-     * @return string 
+     * @param boolean $addAliasProperty Determines if the Alias property should be added to the result.
+     * @param boolean $returnArray Determines if the method should return an array.
+     * @return string
      */
-    public static function getComponentsPropertyConfig($component)
+    public static function getComponentsPropertyConfig($component, $addAliasProperty = true, $returnArray = false)
     {
         $result = [];
 
-        $property = [
-            'property'              => 'oc.alias',
-            'title'                 => Lang::get('cms::lang.component.alias'),
-            'description'           => Lang::get('cms::lang.component.alias_description'),
-            'type'                  => 'string',
-            'validationPattern'     => '^[a-zA-Z]+[0-9a-z\_]*$',
-            'validationMessage'     => Lang::get('cms::lang.component.validation_message'),
-            'showExternalParameter' => false
-        ];
-        $result[] = $property;
+        if ($addAliasProperty) {
+            $property = [
+                'property'              => 'oc.alias',
+                'title'                 => Lang::get('cms::lang.component.alias'),
+                'description'           => Lang::get('cms::lang.component.alias_description'),
+                'type'                  => 'string',
+                'validationPattern'     => '^[a-zA-Z]+[0-9a-z\_]*$',
+                'validationMessage'     => Lang::get('cms::lang.component.validation_message'),
+                'required'              => true,
+                'showExternalParam'     => false
+            ];
+            $result[] = $property;
+        }
 
         $properties = $component->defineProperties();
         foreach ($properties as $name => $params) {
@@ -36,7 +41,7 @@ class ComponentHelpers
                 'property'              => $name,
                 'title'                 => array_get($params, 'title', $name),
                 'type'                  => array_get($params, 'type', 'string'),
-                'showExternalParameter' => array_get($params, 'showExternalParameter', true)
+                'showExternalParam'     => array_get($params, 'showExternalParam', true)
             ];
 
             foreach ($params as $name => $value) {
@@ -49,7 +54,7 @@ class ComponentHelpers
             /*
              * Translate human values
              */
-            $translate = ['title', 'description', 'options'];
+            $translate = ['title', 'description', 'options', 'group'];
             foreach ($property as $name => $value) {
                 if (!in_array($name, $translate)) {
                     continue;
@@ -67,6 +72,9 @@ class ComponentHelpers
 
             $result[] = $property;
         }
+
+        if ($returnArray)
+            return $result;
 
         return json_encode($result);
     }
@@ -93,7 +101,7 @@ class ComponentHelpers
     /**
      * Returns a component name.
      * @param mixed $component The component object
-     * @return string 
+     * @return string
      */
     public static function getComponentName($component)
     {
@@ -108,7 +116,7 @@ class ComponentHelpers
     /**
      * Returns a component description.
      * @param mixed $component The component object
-     * @return string 
+     * @return string
      */
     public static function getComponentDescription($component)
     {

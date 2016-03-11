@@ -18,7 +18,7 @@ return [
         ],
     ],
     'partial' => [
-        'not_found' => "Das Partial ':name' wurde nicht gefunden.",
+        'not_found_name' => "Das Partial ':name' wurde nicht gefunden.",
     ],
     'account' => [
         'sign_out' => 'Abmelden',
@@ -119,7 +119,11 @@ return [
         'setup_title' => 'Listen Setup',
         'setup_help' => 'Benutzen Sie Checkboxen, um Spalten auszuwählen, welche Sie in den Listen sehen möchten. Sie können die Position der Spalten ändern, indem Sie diese hinauf oder hinunter ziehen.',
         'records_per_page' => 'Aufzeichnungen pro Seite',
-        'records_per_page_help' => 'Wählen Sie, wieviele Aufzeichnungen pro Seite dargestellt werden sollen. Bitte beachten Sie, dass eine hohe Anzahl pro Seite die Performance negativ beeinflussen kann.'
+        'records_per_page_help' => 'Wählen Sie, wieviele Aufzeichnungen pro Seite dargestellt werden sollen. Bitte beachten Sie, dass eine hohe Anzahl pro Seite die Performance negativ beeinflussen kann.',
+        'delete_selected' => 'Markierte löschen',
+        'delete_selected_empty' => 'Keine Einträge zum Löschen markiert.',
+        'delete_selected_confirm' => 'Markierte Einträge löschen?',
+        'delete_selected_success' => 'Markierte Einträge erfolgreich gelöscht.'
     ],
     'fileupload' => [
         'attachment' => 'Anhang',
@@ -201,8 +205,8 @@ return [
         'extension' => 'Die PHP Erweiterung :name ist nicht installiert. Bitte installieren Sie diese Library und aktivieren Sie die Erweiterung.'
     ],
     'editor' => [
-        'menu_label' => 'Editor Bevorzugungen',
-        'menu_description' => 'Verwalten von Code Editor Bevorzugungen.',
+        'menu_label' => 'Editor Einstellungen',
+        'menu_description' => 'Verwalten der Code-Editor Einstellungen.',
         'font_size' => 'Schriftgrösse',
         'tab_size' => 'Tabgrösse',
         'use_hard_tabs' => 'Gedankenstrich bei Tabs',
@@ -226,8 +230,8 @@ return [
         'menu_keywords' => 'Sicheres Anmelden'
     ],
     'backend_preferences' => [
-        'menu_label' => 'Backend Bevorzugungen',
-        'menu_description' => 'Verwalten der Spracheinstellungen und der Darstellung des Backend.',
+        'menu_label' => 'Backend Einstellungen',
+        'menu_description' => 'Verwalten der Spracheinstellungen und der Backenddarstellung.',
         'locale' => 'Sprache',
         'locale_comment' => 'Wählen Sie Ihre gewünschte Sprache für das Backend.',
     ],
@@ -244,5 +248,45 @@ return [
     ],
     'filter' => [
       'all' => 'Alle'
-    ]
+    ],
+    'import_export' => [
+        'upload_csv_file' => '1. CSV-Datei hochladen',
+        'import_file' => 'Datei importieren',
+        'first_row_contains_titles' => 'Erste Zeile enthält Spaltentitel',
+        'first_row_contains_titles_desc' => 'Aktiviert lassen, falls erste Zeile Spaltentitel enthält.',
+        'match_columns' => '2. Spalten der Datei den Datenbankfeldern zuordnen',
+        'file_columns' => 'Spalten der Datei',
+        'database_fields' => 'Datenbankfelder',
+        'set_import_options' => '3. Importoptionen festlegen',
+        'export_output_format' => '1. Exportformat wählen',
+        'file_format' => 'Dateiformat',
+        'standard_format' => 'Standardformat',
+        'custom_format' => 'Benutzerdefiniertes Format',
+        'delimiter_char' => 'Trennzeichen',
+        'enclosure_char' => 'Textqualifizierer',
+        'escape_char' => 'Escape-Zeichen',
+        'select_columns' => '2. Spalten für den Export auswählen',
+        'column' => 'Spalte',
+        'columns' => 'Spalten',
+        'set_export_options' => '3. Exportoptionen festlegen',
+        'show_ignored_columns' => 'Ignorierte Spalten anzeigen',
+        'auto_match_columns' => 'Spalten automatisch zuordnen',
+        'created' => 'Erstellt',
+        'updated' => 'Geändert',
+        'skipped' => 'Übersprungen',
+        'warnings' => 'Warnungen',
+        'errors' => 'Fehler',
+        'skipped_rows' => 'Übersprungene Zeilen',
+        'import_progress' => 'Import-Fortschritt',
+        'processing' => 'Verarbeite',
+        'import_error' => 'Import-Fehler',
+        'upload_valid_csv' => 'Bitte eine gültige CSV-Datei hochladen.',
+        'drop_column_here' => 'Spalte hier ablegen...',
+        'ignore_this_column' => 'Diese Spalte ignorieren',
+        'processing_successful_line1' => 'Datei-Exportvorgang erfolgreich abgeschlossen!',
+        'processing_successful_line2' => 'Ihr Browser sollte Sie nun automatisch zum Download weiterleiten.',
+        'export_progress' => 'Export-Fortschritt',
+        'export_error' => 'Export-Fehler',
+        'column_preview' => 'Spaltenvorschau',
+    ],
 ];

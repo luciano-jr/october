@@ -5,8 +5,9 @@ use Lang;
 use Cache;
 use Config;
 use Validator;
-use System\Classes\ApplicationException;
-use October\Rain\Support\ValidationException;
+use Cms\Helpers\File as FileHelper;
+use ApplicationException;
+use ValidationException;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use ArrayAccess;
@@ -73,7 +74,7 @@ class CmsObject implements ArrayAccess
     /**
      * Loads the object from a cache.
      * This method is used by the CMS in the runtime. If the cache is not found, it is created.
-     * @param \Cms\Classes\Theme $theme Specifies the theme the object belongs to.
+     * @param $theme Specifies the theme the object belongs to.
      * @param string $fileName Specifies the file name, with the extension.
      * @return mixed Returns a CMS object instance or null if the object wasn't found.
      */
@@ -148,7 +149,7 @@ class CmsObject implements ArrayAccess
     /**
      * Loads the object from a file.
      * This method is used in the CMS back-end. It doesn't use any caching.
-     * @param \Cms\Classes\Theme $theme Specifies the theme the object belongs to.
+     * @param $theme Specifies the theme the object belongs to.
      * @param string $fileName Specifies the file name, with the extension.
      * The file name can contain only alphanumeric symbols, dashes and dots.
      * @return mixed Returns a CMS object instance or null if the object wasn't found.
@@ -445,7 +446,7 @@ class CmsObject implements ArrayAccess
     
     /**
      * Returns the absolute file path.
-     * @param \Cms\Classes\Theme $theme Specifies a theme the file belongs to.
+     * @param $theme Specifies a theme the file belongs to.
      * @param string$fileName Specifies the file name to return the path to.
      * @return string
      */
@@ -457,7 +458,7 @@ class CmsObject implements ArrayAccess
     /**
      * Implements the getter functionality.
      * @param  string  $name
-     * @return void
+     * @return null|string
      */
     public function __get($name)
     {
@@ -472,7 +473,7 @@ class CmsObject implements ArrayAccess
     /**
      * Determine if an attribute exists on the object.
      * @param  string  $key
-     * @return void
+     * @return bool
      */
     public function __isset($key)
     {

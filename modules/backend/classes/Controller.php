@@ -5,6 +5,8 @@ use Log;
 use Lang;
 use View;
 use Flash;
+use Event;
+use Config;
 use Request;
 use Backend;
 use Session;
@@ -14,10 +16,13 @@ use Exception;
 use BackendAuth;
 use Backend\Models\UserPreferences;
 use Backend\Models\BackendPreferences;
-use System\Classes\SystemException;
-use System\Classes\ApplicationException;
+use Cms\Widgets\MediaManager;
+use System\Classes\ErrorHandler;
+use October\Rain\Exception\AjaxException;
+use October\Rain\Exception\SystemException;
+use October\Rain\Exception\ValidationException;
+use October\Rain\Exception\ApplicationException;
 use October\Rain\Extension\Extendable;
-use October\Rain\Support\ValidationException;
 use Illuminate\Database\Eloquent\MassAssignmentException;
 use Illuminate\Http\RedirectResponse;
 
@@ -30,9 +35,9 @@ use Illuminate\Http\RedirectResponse;
  */
 class Controller extends Extendable
 {
+    use \System\Traits\ViewMaker;
     use \System\Traits\AssetMaker;
     use \System\Traits\ConfigMaker;
-    use \System\Traits\ViewMaker;
     use \Backend\Traits\WidgetMaker;
     use \October\Rain\Support\Traits\Emitter;
 
@@ -133,17 +138,24 @@ class Controller extends Extendable
         /*
          * Define layout and view paths
          */
-        $this->layout = 'default';
+        $this->layout = $this->layout ?: 'default';
         $this->layoutPath = Skin::getActive()->getLayoutPaths();
-
-        // Option A: (@todo Determine which is faster by benchmark)
-        // $relativePath = strtolower(str_replace('\\', '/', get_called_class()));
-        // $this->viewPath = $this->configPath = ['modules/' . $relativePath, 'plugins/' . $relativePath];
-
-        // Option B:
         $this->viewPath = $this->configPath = $this->guessViewPath();
 
+        /*
+         * Add layout paths from the plugin / module context
+         */
+        $relativePath = dirname(dirname(strtolower(str_replace('\\', '/', get_called_class()))));
+        $this->layoutPath[] = '~/modules/' . $relativePath . '/layouts';
+        $this->layoutPath[] = '~/plugins/' . $relativePath . '/layouts';
+
         parent::__construct();
+
+        /*
+         * Media Manager widget is available on all back-end pages
+         */
+        $manager = new MediaManager($this, 'ocmediamanager');
+        $manager->bindToController();
     }
 
     /**
@@ -158,6 +170,23 @@ class Controller extends Extendable
         $this->params = $params;
 
         /*
+         * Check security token.
+         */
+        if (!$this->verifyCsrfToken()) {
+            return Response::make(Lang::get('backend::lang.page.invalid_token.label'), 403);
+        }
+
+        /*
+         * Extensibility
+         */
+        if (
+            ($event = $this->fireEvent('page.beforeDisplay', [$action, $params], true)) ||
+            ($event = Event::fire('backend.page.beforeDisplay', [$this, $action, $params], true))
+        ) {
+            return $event;
+        }
+
+        /*
          * Determine if this request is a public action.
          */
         $isPublicAction = in_array($action, $this->publicActions);
@@ -170,14 +199,18 @@ class Controller extends Extendable
          */
         if (!$isPublicAction) {
 
-            // Not logged in, redirect to login screen or show ajax error
+            /*
+             * Not logged in, redirect to login screen or show ajax error.
+             */
             if (!BackendAuth::check()) {
                 return Request::ajax()
                     ? Response::make(Lang::get('backend::lang.page.access_denied.label'), 403)
-                    : Redirect::guest(Backend::url('backend/auth'));
+                    : Backend::redirectGuest('backend/auth');
             }
 
-            // Check his access groups against the page definition
+            /*
+             * Check access groups against the page definition
+             */
             if ($this->requiredPermissions && !$this->user->hasAnyAccess($this->requiredPermissions)) {
                 return Response::make(View::make('backend::access_denied'), 403);
             }
@@ -266,6 +299,27 @@ class Controller extends Extendable
     }
 
     /**
+     * Returns a URL for this controller and supplied action.
+     */
+    public function actionUrl($action = null, $path = null)
+    {
+        if ($action === null) {
+            $action = $this->action;
+        }
+
+        $class = get_called_class();
+        $uriPath = dirname(dirname(strtolower(str_replace('\\', '/', $class))));
+        $controllerName = strtolower(class_basename($class));
+
+        $url = $uriPath.'/'.$controllerName.'/'.$action;
+        if ($path) {
+            $url .= '/'.$path;
+        }
+
+        return Backend::url($url);
+    }
+
+    /**
      * Invokes the current controller action without rendering a view,
      * used by AJAX handler that may rely on the logic inside the action.
      */
@@ -300,7 +354,8 @@ class Controller extends Extendable
         // Execute the action
         $result = call_user_func_array([$this, $actionName], $parameters);
 
-        if ($result instanceof RedirectResponse) {
+        // Expecting \Response and \RedirectResponse
+        if ($result instanceof \Symfony\Component\HttpFoundation\Response) {
             return $result;
         }
 
@@ -318,12 +373,30 @@ class Controller extends Extendable
     }
 
     /**
+     * Returns the AJAX handler for the current request, if available.
+     * @return string
+     */
+    public function getAjaxHandler()
+    {
+        if (!Request::ajax() || Request::method() != 'POST') {
+            return null;
+        }
+
+        if ($handler = Request::header('X_OCTOBER_REQUEST_HANDLER')) {
+            return trim($handler);
+        }
+
+        return null;
+    }
+
+    /**
      * This method is used internally.
      * Invokes a controller event handler and loads the supplied partials.
      */
     protected function execAjaxHandlers()
     {
-        if ($handler = trim(Request::header('X_OCTOBER_REQUEST_HANDLER'))) {
+
+        if ($handler = $this->getAjaxHandler()) {
             try {
                 /*
                  * Validate the handler name
@@ -337,16 +410,6 @@ class Controller extends Extendable
                  */
                 if ($partialList = trim(Request::header('X_OCTOBER_REQUEST_PARTIALS'))) {
                     $partialList = explode('&', $partialList);
-
-                    // @todo Do we need to validate backend partials?
-                    // foreach ($partialList as $partial) {
-                    //     if (!preg_match('/^(?:\w+\:{2}|@)?[a-z0-9\_\-\.\/]+$/i', $partial)) {
-                    //         throw new SystemException(Lang::get(
-                    //             'cms::lang.partial.invalid_name',
-                    //             ['name' => $partial]
-                    //         ));
-                    //     }
-                    // }
                 }
                 else {
                     $partialList = [];
@@ -385,10 +448,10 @@ class Controller extends Extendable
                  */
                 if ($result instanceof RedirectResponse) {
                     $responseContents['X_OCTOBER_REDIRECT'] = $result->getTargetUrl();
+                }
                 /*
                  * No redirect is used, look for any flash messages
                  */
-                }
                 elseif (Flash::check()) {
                     $responseContents['#layout-flash-messages'] = $this->makeLayoutPartial('flash_messages');
                 }
@@ -410,22 +473,13 @@ class Controller extends Extendable
                 $responseContents = [];
                 $responseContents['#layout-flash-messages'] = $this->makeLayoutPartial('flash_messages');
                 $responseContents['X_OCTOBER_ERROR_FIELDS'] = $ex->getFields();
-                return Response::make($responseContents, 406);
+                throw new AjaxException($responseContents);
             }
             catch (MassAssignmentException $ex) {
-                return Response::make(
-                    Lang::get('backend::lang.model.mass_assignment_failed', ['attribute' => $ex->getMessage()]),
-                    500
-                );
-            }
-            catch (ApplicationException $ex) {
-                return Response::make($ex->getMessage(), 500);
+                throw new ApplicationException(Lang::get('backend::lang.model.mass_assignment_failed', ['attribute' => $ex->getMessage()]));
             }
             catch (Exception $ex) {
-                return Response::make(
-                    sprintf('"%s" on line %s of %s', $ex->getMessage(), $ex->getLine(), $ex->getFile()),
-                    500
-                );
+                throw $ex;
             }
         }
 
@@ -488,7 +542,7 @@ class Controller extends Extendable
             $this->suppressView = true;
             $this->execPageAction($this->action, $this->params);
 
-            foreach ($this->widget as $widget) {
+            foreach ((array) $this->widget as $widget) {
                 if (method_exists($widget, $handler)) {
                     $result = call_user_func_array([$widget, $handler], $this->params);
                     return ($result) ?: true;
@@ -497,6 +551,14 @@ class Controller extends Extendable
         }
 
         return false;
+    }
+
+    /**
+     * Returns the controllers public actions.
+     */
+    public function getPublicActions()
+    {
+        return $this->publicActions;
     }
 
     /**
@@ -527,8 +589,9 @@ class Controller extends Extendable
      */
     public function handleError($exception)
     {
-        $this->fatalError = $exception->getMessage();
-        $this->vars['fatalError'] = $exception->getMessage();
+        $errorMessage = ErrorHandler::getDetailedMessage($exception);
+        $this->fatalError = $errorMessage;
+        $this->vars['fatalError'] = $errorMessage;
     }
 
     //
@@ -537,21 +600,28 @@ class Controller extends Extendable
 
     /**
      * Renders a hint partial, used for displaying informative information that
-     * can be hidden by the user.
+     * can be hidden by the user. If you don't want to render a partial, you can
+     * supply content via the 'content' key of $params.
      * @param  string $name    Unique key name
      * @param  string $partial Reference to content (partial name)
      * @param  array  $params  Extra parameters
      * @return string
      */
-    public function makeHintPartial($name, $partial = null, array $params = [])
+    public function makeHintPartial($name, $partial = null, $params = [])
     {
+        if (is_array($partial)) {
+            $params = $partial;
+            $partial = null;
+        }
+
         if (!$partial) {
-            $partial = $name;
+            $partial = array_get($params, 'partial', $name);
         }
 
         return $this->makeLayoutPartial('hint', [
             'hintName'    => $name,
             'hintPartial' => $partial,
+            'hintContent' => array_get($params, 'content'),
             'hintParams'  => $params
         ] + $params);
     }
@@ -583,5 +653,33 @@ class Controller extends Extendable
     {
         $hiddenHints = UserPreferences::forUser()->get('backend::hints.hidden', []);
         return array_key_exists($name, $hiddenHints);
+    }
+
+    //
+    // CSRF Protection
+    //
+
+    /**
+     * Checks the request data / headers for a valid CSRF token.
+     * Returns false if a valid token is not found. Override this
+     * method to disable the check.
+     * @return bool
+     */
+    protected function verifyCsrfToken()
+    {
+        if (!Config::get('cms.enableCsrfProtection')) {
+            return true;
+        }
+
+        if (in_array(Request::method(), ['HEAD', 'GET', 'OPTIONS'])) {
+            return true;
+        }
+
+        $token = Request::input('_token') ?: Request::header('X-CSRF-TOKEN');
+
+        return \Symfony\Component\Security\Core\Util\StringUtils::equals(
+            Session::getToken(),
+            $token
+        );
     }
 }

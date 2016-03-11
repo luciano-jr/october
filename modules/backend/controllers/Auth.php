@@ -11,8 +11,8 @@ use Backend\Models\User;
 use Backend\Models\AccessLog;
 use Backend\Classes\Controller;
 use System\Classes\UpdateManager;
-use System\Classes\ApplicationException;
-use October\Rain\Support\ValidationException;
+use ApplicationException;
+use ValidationException;
 use Exception;
 
 /**
@@ -37,7 +37,7 @@ class Auth extends Controller
      */
     public function index()
     {
-        return Redirect::to(Backend::url('backend/auth/signin'));
+        return Backend::redirect('backend/auth/signin');
     }
 
     /**
@@ -63,8 +63,8 @@ class Auth extends Controller
     public function signin_onSubmit()
     {
         $rules = [
-            'login'    => 'required|min:2|max:32',
-            'password' => 'required|min:2'
+            'login'    => 'required|between:2,255',
+            'password' => 'required|between:4,255'
         ];
 
         $validation = Validator::make(post(), $rules);
@@ -84,16 +84,8 @@ class Auth extends Controller
         // Log the sign in event
         AccessLog::add($user);
 
-        // User cannot access the dashboard
-        if (!$user->hasAccess('backend.access_dashboard')) {
-            $true = function(){ return true; };
-            if ($first = array_first(BackendMenu::listMainMenuItems(), $true)) {
-                return Redirect::intended($first->url);
-            }
-        }
-
         // Redirect to the intended page after successful sign in
-        return Redirect::intended(Backend::url('backend'));
+        return Backend::redirectIntended('backend');
     }
 
     /**
@@ -102,9 +94,9 @@ class Auth extends Controller
     public function signout()
     {
         BackendAuth::logout();
-        return Redirect::to(Backend::url('backend'));
+        return Backend::redirect('backend');
     }
-    
+
     /**
      * Request a password reset verification code.
      */
@@ -123,7 +115,7 @@ class Auth extends Controller
     public function restore_onSubmit()
     {
         $rules = [
-            'login' => 'required|min:2|max:32'
+            'login' => 'required|between:2,255'
         ];
 
         $validation = Validator::make(post(), $rules);
@@ -152,7 +144,7 @@ class Auth extends Controller
             $message->to($user->email, $user->full_name)->subject(trans('backend::lang.account.password_reset'));
         });
 
-        return Redirect::to(Backend::url('backend/auth/signin'));
+        return Backend::redirect('backend/auth/signin');
     }
 
     /**
@@ -184,7 +176,7 @@ class Auth extends Controller
         }
 
         $rules = [
-            'password' => 'required|min:2'
+            'password' => 'required|between:4,255'
         ];
 
         $validation = Validator::make(post(), $rules);
@@ -207,6 +199,6 @@ class Auth extends Controller
 
         Flash::success(trans('backend::lang.account.reset_success'));
 
-        return Redirect::to(Backend::url('backend/auth/signin'));
+        return Backend::redirect('backend/auth/signin');
     }
 }

@@ -3,13 +3,14 @@
 use URL;
 use Flash;
 use Block;
+use Event;
 use Twig_Extension;
 use Twig_TokenParser;
 use Twig_SimpleFilter;
 use Twig_SimpleFunction;
 use Cms\Classes\Controller;
 use Cms\Classes\CmsException;
-use System\Classes\ApplicationException;
+use ApplicationException;
 
 /**
  * The CMS Twig extension class implements the basic CMS Twig functions and filters.
@@ -69,6 +70,7 @@ class Extension extends Twig_Extension
         return [
             new Twig_SimpleFilter('page', [$this, 'pageFilter'], ['is_safe' => ['html']]),
             new Twig_SimpleFilter('theme', [$this, 'themeFilter'], ['is_safe' => ['html']]),
+            new Twig_SimpleFilter('media', [$this, 'mediaFilter'], ['is_safe' => ['html']]),
         ];
     }
 
@@ -117,11 +119,13 @@ class Extension extends Twig_Extension
 
     /**
      * Renders a content file.
+     * @param string $name Specifies the content block name.
+     * @param array $parameters A optional list of parameters to pass to the content.
      * @return string Returns the file contents.
      */
-    public function contentFunction($name)
+    public function contentFunction($name, $parameters = [])
     {
-        return $this->controller->renderContent($name);
+        return $this->controller->renderContent($name, $parameters);
     }
 
     /**
@@ -160,6 +164,19 @@ class Extension extends Twig_Extension
     }
 
     /**
+     * Looks up the URL for a supplied page and returns it relative to the website root.
+     * @param mixed $name Specifies the Cms Page file name.
+     * @param array $parameters Route parameters to consider in the URL.
+     * @param bool $routePersistence By default the existing routing parameters will be included
+     * when creating the URL, set to false to disable this feature.
+     * @return string
+     */
+    public function pageFilter($name, $parameters = [], $routePersistence = true)
+    {
+        return $this->controller->pageUrl($name, $parameters, $routePersistence);
+    }
+
+    /**
      * Converts supplied URL to a theme URL relative to the website root. If the URL provided is an
      * array then the files will be combined.
      * @param mixed $url Specifies the theme-relative URL
@@ -171,16 +188,13 @@ class Extension extends Twig_Extension
     }
 
     /**
-     * Looks up the URL for a supplied page and returns it relative to the website root.
-     * @param mixed $name Specifies the Cms Page file name.
-     * @param array $parameters Route parameters to consider in the URL.
-     * @param bool $routePersistence By default the existing routing parameters will be included
-     * when creating the URL, set to false to disable this feature.
+     * Converts supplied file to a URL relative to the media library.
+     * @param string $file Specifies the media-relative file
      * @return string
      */
-    public function pageFilter($name, $parameters = [], $routePersistence = true)
+    public function mediaFilter($file)
     {
-        return $this->controller->pageUrl($name, $parameters, $routePersistence);
+        return $this->controller->mediaUrl($file);
     }
 
     /**
@@ -203,6 +217,9 @@ class Extension extends Twig_Extension
         if (($result = Block::placeholder($name)) === null) {
             return $default;
         }
+
+        if ($event = Event::fire('cms.block.render', [$name, $result], true))
+            $result = $event;
 
         $result = str_replace('<!-- X_OCTOBER_DEFAULT_BLOCK_CONTENT -->', trim($default), $result);
         return $result;

@@ -1,7 +1,9 @@
 <?php namespace Backend\Traits;
 
+use Lang;
+use Backend\Classes\FormField;
 use Backend\Classes\WidgetManager;
-use System\Classes\SystemException;
+use SystemException;
 
 /**
  * Config Maker Trait
@@ -18,15 +20,58 @@ trait WidgetMaker
     /**
      * Makes a widget object with the supplied configuration file.
      * @param string $class Widget class name
-     * @param array $configuration An array of config.
-     * @return WidgetBase The widget or null
+     * @param array $widgetConfig An array of config.
+     * @return WidgetBase The widget object
      */
-    public function makeWidget($class, $configuration = null)
+    public function makeWidget($class, $widgetConfig = [])
     {
-        $controller = ($this->controller) ?: $this;
+        $controller = property_exists($this, 'controller') && $this->controller
+            ? $this->controller
+            : $this;
 
-        $manager = WidgetManager::instance();
-        $widget = $manager->makeWidget($class, $controller, $configuration);
-        return $widget;
+        if (!class_exists($class)) {
+            throw new SystemException(Lang::get('backend::lang.widget.not_registered', [
+                'name' => $class
+            ]));
+        }
+
+        return new $class($controller, $widgetConfig);
+    }
+
+    /**
+     * Makes a form widget object with the supplied form field and widget configuration.
+     * @param string $class Widget class name
+     * @param mixed $fieldConfig A field name, an array of config or a FormField object.
+     * @param array $widgetConfig An array of config.
+     * @return FormWidgetBase The widget object
+     */
+    public function makeFormWidget($class, $fieldConfig = [], $widgetConfig = [])
+    {
+        $controller = property_exists($this, 'controller') && $this->controller
+            ? $this->controller
+            : $this;
+
+        if (!class_exists($class)) {
+            throw new SystemException(Lang::get('backend::lang.widget.not_registered', [
+                'name' => $class
+            ]));
+        }
+
+        if (is_string($fieldConfig)) {
+            $fieldConfig = ['name' => $fieldConfig];
+        }
+
+        if (is_array($fieldConfig)) {
+            $formField = new FormField(
+                array_get($fieldConfig, 'name'),
+                array_get($fieldConfig, 'label')
+            );
+            $formField->displayAs('widget', $fieldConfig);
+        }
+        else {
+            $formField = $fieldConfig;
+        }
+
+        return new $class($controller, $formField, $widgetConfig);
     }
 }

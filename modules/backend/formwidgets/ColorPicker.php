@@ -11,10 +11,9 @@ use Backend\Classes\FormWidgetBase;
  */
 class ColorPicker extends FormWidgetBase
 {
-    /**
-     * {@inheritDoc}
-     */
-    public $defaultAlias = 'colorpicker';
+    //
+    // Configurable properties
+    //
 
     /**
      * @var array Default available colors
@@ -32,12 +31,23 @@ class ColorPicker extends FormWidgetBase
         '#95a5a6', '#7f8c8d',
     ];
 
+    //
+    // Object properties
+    //
+
+    /**
+     * {@inheritDoc}
+     */
+    protected $defaultAlias = 'colorpicker';
+
     /**
      * {@inheritDoc}
      */
     public function init()
     {
-        $this->availableColors = $this->getConfig('availableColors', $this->availableColors);
+        $this->fillFromConfig([
+            'availableColors',
+        ]);
     }
 
     /**
@@ -55,7 +65,7 @@ class ColorPicker extends FormWidgetBase
     public function prepareVars()
     {
         $this->vars['name'] = $this->formField->getName();
-        $this->vars['value'] = $value = $this->getLoadData();
+        $this->vars['value'] = $value = $this->getLoadValue();
         $this->vars['availableColors'] = $this->availableColors;
         $this->vars['isCustomColor'] = !in_array($value, $this->availableColors);
     }
@@ -63,7 +73,7 @@ class ColorPicker extends FormWidgetBase
     /**
      * {@inheritDoc}
      */
-    public function loadAssets()
+    protected function loadAssets()
     {
         $this->addCss('vendor/colpick/css/colpick.css', 'core');
         $this->addJs('vendor/colpick/js/colpick.js', 'core');
@@ -74,7 +84,7 @@ class ColorPicker extends FormWidgetBase
     /**
      * {@inheritDoc}
      */
-    public function getSaveData($value)
+    public function getSaveValue($value)
     {
         return strlen($value) ? $value : null;
     }

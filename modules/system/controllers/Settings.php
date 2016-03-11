@@ -7,7 +7,7 @@ use Redirect;
 use BackendMenu;
 use System\Classes\SettingsManager;
 use Backend\Classes\Controller;
-use System\Classes\ApplicationException;
+use ApplicationException;
 use Exception;
 
 /**
@@ -24,17 +24,17 @@ class Settings extends Controller
      */
     protected $formWidget;
 
-    public $requiredPermissions = ['system.manage_settings'];
+    public $requiredPermissions = [];
 
     public function __construct()
     {
         parent::__construct();
 
-        if ($this->action == 'mysettings') {
-            $this->requiredPermissions = null;
+        if ($this->action == 'backend_preferences') {
+            $this->requiredPermissions = ['backend.manage_preferences'];
         }
 
-        $this->addCss('/modules/system/assets/css/settings.css', 'core');
+        $this->addCss('/modules/system/assets/css/settings/settings.css', 'core');
 
         BackendMenu::setContext('October.System', 'system', 'settings');
     }
@@ -104,10 +104,10 @@ class Settings extends Controller
          */
         if ($redirectUrl = post('redirect', true)) {
             $redirectUrl = ($item->context == 'mysettings')
-                ? Backend::url('system/settings/mysettings')
-                : Backend::url('system/settings');
+                ? 'system/settings/mysettings'
+                : 'system/settings';
 
-            return Redirect::to($redirectUrl);
+            return Backend::redirect($redirectUrl);
         }
     }
 
@@ -117,8 +117,7 @@ class Settings extends Controller
         $model = $this->createModel($item);
         $model->resetDefault();
 
-        $redirectUrl = Backend::url('system/settings/update/'.$author.'/'.$plugin.'/'.$code);
-        return Redirect::to($redirectUrl);
+        return Backend::redirect('system/settings/update/'.$author.'/'.$plugin.'/'.$code);
     }
 
     /**

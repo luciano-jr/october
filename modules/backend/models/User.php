@@ -21,10 +21,10 @@ class User extends UserBase
      * Validation rules
      */
     public $rules = [
-        'login' => 'required|between:2,24|unique:backend_users',
-        'email' => 'required|between:3,64|email|unique:backend_users',
-        'password' => 'required:create|between:4,64|confirmed',
-        'password_confirmation' => 'required_with:password|between:4,64'
+        'email' => 'required|between:6,255|email|unique:backend_users',
+        'login' => 'required|between:2,255|unique:backend_users',
+        'password' => 'required:create|between:4,255|confirmed',
+        'password_confirmation' => 'required_with:password|between:4,255'
     ];
 
     /**
@@ -76,13 +76,23 @@ class User extends UserBase
     /**
      * Returns the public image file path to this user's avatar.
      */
-    public function getAvatarThumb($size = 25, $default = null)
+    public function getAvatarThumb($size = 25, $options = null)
     {
+        if (is_string($options)) {
+            $options = ['default' => $options];
+        }
+        elseif (!is_array($options)) {
+            $options = [];
+        }
+
+        // Default is "mm" (Mystery man)
+        $default = array_get($options, 'default', 'mm');
+
         if ($this->avatar) {
-            return $this->avatar->getThumb($size, $size);
+            return $this->avatar->getThumb($size, $size, $options);
         }
         else {
-            return '//www.gravatar.com/avatar/'.
+            return '//www.gravatar.com/avatar/' .
                 md5(strtolower(trim($this->email))) .
                 '?s='. $size .
                 '&d='. urlencode($default);
@@ -110,5 +120,14 @@ class User extends UserBase
         Mail::send('backend::mail.invite', $data, function ($message) {
             $message->to($this->email, $this->full_name);
         });
+    }
+
+    public function getGroupsOptions()
+    {
+        $result = [];
+        foreach (UserGroup::all() as $group) {
+            $result[$group->id] = [$group->name, $group->description];
+        }
+        return $result;
     }
 }
