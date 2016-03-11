@@ -5,8 +5,9 @@ use Lang;
 use Cache;
 use Config;
 use Validator;
-use System\Classes\ApplicationException;
-use October\Rain\Support\ValidationException;
+use Cms\Helpers\File as FileHelper;
+use ApplicationException;
+use ValidationException;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use ArrayAccess;
@@ -457,7 +458,7 @@ class CmsObject implements ArrayAccess
     /**
      * Implements the getter functionality.
      * @param  string  $name
-     * @return void
+     * @return null|string
      */
     public function __get($name)
     {
@@ -472,7 +473,7 @@ class CmsObject implements ArrayAccess
     /**
      * Determine if an attribute exists on the object.
      * @param  string  $key
-     * @return void
+     * @return bool
      */
     public function __isset($key)
     {

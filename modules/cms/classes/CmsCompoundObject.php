@@ -1,17 +1,17 @@
 <?php namespace Cms\Classes;
 
-use Validator;
-use Cms\Classes\CodeBase;
-use System\Classes\SystemException;
-use Cms\Classes\FileHelper;
-use October\Rain\Support\ValidationException;
-use Cms\Classes\ViewBag;
+use Ini;
 use Cache;
 use Config;
-use Twig_Environment;
-use System\Twig\Extension as SystemTwigExtension;
-use Cms\Twig\Extension as CmsTwigExtension;
+use Validator;
+use SystemException;
+use ValidationException;
+use Cms\Classes\ViewBag;
+use Cms\Classes\CodeBase;
 use Cms\Twig\Loader as TwigLoader;
+use Cms\Twig\Extension as CmsTwigExtension;
+use System\Twig\Extension as SystemTwigExtension;
+use Twig_Environment;
 
 /**
  * This is a base class for CMS objects that have multiple sections - pages, partials and layouts.
@@ -43,6 +43,15 @@ class CmsCompoundObject extends CmsObject
      */
     public $markup;
 
+    /**
+     * @var array Contains the view bag properties.
+     * This property is used by the page editor internally.
+     */
+    public $viewBag = [];
+
+    /**
+     * @var array Properties that can be set with fill()
+     */
     protected static $fillable = [
         'markup',
         'settings',
@@ -96,12 +105,17 @@ class CmsCompoundObject extends CmsObject
     }
 
     /**
-     * Implements getter functionality for properties defined in the settings section.
+     * Implements getter functionality for visible properties defined in
+     * the settings section or view bag array.
      */
     public function __get($name)
     {
         if (is_array($this->settings) && array_key_exists($name, $this->settings)) {
             return $this->settings[$name];
+        }
+
+        if (is_array($this->viewBag) && array_key_exists($name, $this->viewBag)) {
+            return $this->viewBag[$name];
         }
 
         return parent::__get($name);
@@ -119,15 +133,11 @@ class CmsCompoundObject extends CmsObject
             return true;
         }
 
-        return isset($this->settings[$key]);
-    }
+        if (isset($this->viewBag[$key]) === true) {
+            return true;
+        }
 
-    /**
-     * Returns the Twig content string
-     */
-    public function getTwigContent()
-    {
-        return $this->markup;
+        return isset($this->settings[$key]);
     }
 
     /**
@@ -159,9 +169,6 @@ class CmsCompoundObject extends CmsObject
 
             $settingParts = explode(' ', $setting);
             $settingName = $settingParts[0];
-            // if (!$manager->hasComponent($settingName)) {
-            //     continue;
-            // }
 
             $components[$setting] = $value;
             unset($this->settings[$setting]);
@@ -220,7 +227,7 @@ class CmsCompoundObject extends CmsObject
         $content = [];
 
         if ($this->settings) {
-            $content[] = FileHelper::formatIniString($this->settings);
+            $content[] = Ini::render($this->settings);
         }
 
         if ($this->code) {
@@ -293,20 +300,31 @@ class CmsCompoundObject extends CmsObject
      */
     public function hasComponent($componentName)
     {
+        $componentManager = ComponentManager::instance();
+        $componentName = $componentManager->resolve($componentName);
+
         foreach ($this->settings['components'] as $sectionName => $values) {
+
+            $result = $sectionName;
+
             if ($sectionName == $componentName) {
-                return $componentName;
+                return $result;
             }
 
             $parts = explode(' ', $sectionName);
+            if (count($parts) > 1) {
+                $sectionName = trim($parts[0]);
 
-            if (count($parts) < 2) {
-                continue;
+                if ($sectionName == $componentName) {
+                    return $result;
+                }
             }
 
-            if (trim($parts[0]) == $componentName) {
-                return $sectionName;
+            $sectionName = $componentManager->resolve($sectionName);
+            if ($sectionName == $componentName) {
+                return $result;
             }
+
         }
 
         return false;
@@ -348,13 +366,13 @@ class CmsCompoundObject extends CmsObject
             $objectComponentMap[$objectCode] = [];
         }
         else {
-            foreach ($this->settings['components'] as $componentName => $componentSettings) {
-                $nameParts = explode(' ', $componentName);
+            foreach ($this->settings['components'] as $name => $settings) {
+                $nameParts = explode(' ', $name);
                 if (count($nameParts > 1)) {
-                    $componentName = trim($nameParts[0]);
+                    $name = trim($nameParts[0]);
                 }
 
-                $component = $this->getComponent($componentName);
+                $component = $this->getComponent($name);
                 if (!$component) {
                     continue;
                 }
@@ -365,7 +383,7 @@ class CmsCompoundObject extends CmsObject
                     $componentProperties[$propertyName] = $component->property($propertyName);
                 }
 
-                $objectComponentMap[$objectCode][$componentName] = $componentProperties;
+                $objectComponentMap[$objectCode][$name] = $componentProperties;
             }
         }
 
@@ -390,26 +408,6 @@ class CmsCompoundObject extends CmsObject
     }
 
     /**
-     * Returns Twig node tree generated from the object's markup.
-     * This method is used by the system internally and shouldn't
-     * participate in the front-end request processing.
-     * @link http://twig.sensiolabs.org/doc/internals.html Twig internals
-     * @param mixed $markup Specifies the markup content. 
-     * Use FALSE to load the content from the markup section.
-     * @return Twig_Node_Module A node tree
-     */
-    public function getTwigNodeTree($markup = false)
-    {
-        $loader = new TwigLoader();
-        $twig = new Twig_Environment($loader, []);
-        $twig->addExtension(new CmsTwigExtension());
-        $twig->addExtension(new SystemTwigExtension);
-
-        $stream = $twig->tokenize($markup === false ? $this->markup : $markup, 'getTwigNodeTree');
-        return $twig->parse($stream);
-    }
-
-    /**
      * Parses the settings array.
      * Child classes can override this method in order to update
      * the content of the $settings property after the object
@@ -417,6 +415,19 @@ class CmsCompoundObject extends CmsObject
      */
     protected function parseSettings()
     {
+        $this->fillViewBagArray();
+    }
+
+    /*
+     * Copies view bag properties to the view bag array.
+     * This is required for the back-end editors.
+     */
+    protected function fillViewBagArray()
+    {
+        $viewBag = $this->getViewBag();
+        foreach ($viewBag->getProperties() as $name => $value) {
+            $this->viewBag[$name] = $value;
+        }
     }
 
     /**
@@ -425,9 +436,10 @@ class CmsCompoundObject extends CmsObject
      */
     protected function initFromCache($cached)
     {
-        $this->settings = $cached['settings'];
-        $this->code = $cached['code'];
-        $this->markup = $cached['markup'];
+        $this->viewBag = array_get($cached, 'viewBag', []);
+        $this->settings = array_get($cached, 'settings', []);
+        $this->code = array_get($cached, 'code');
+        $this->markup = array_get($cached, 'markup');
     }
 
     /**
@@ -436,6 +448,7 @@ class CmsCompoundObject extends CmsObject
      */
     protected function initCacheItem(&$item)
     {
+        $item['viewBag'] = $this->viewBag;
         $item['settings'] = $this->settings;
         $item['code'] = $this->code;
         $item['markup'] = $this->markup;
@@ -475,5 +488,38 @@ class CmsCompoundObject extends CmsObject
     protected function wrapCodeToPhpTags()
     {
         return true;
+    }
+
+    //
+    // Twig
+    //
+
+    /**
+     * Returns the Twig content string
+     * @return string
+     */
+    public function getTwigContent()
+    {
+        return $this->markup;
+    }
+
+    /**
+     * Returns Twig node tree generated from the object's markup.
+     * This method is used by the system internally and shouldn't
+     * participate in the front-end request processing.
+     * @link http://twig.sensiolabs.org/doc/internals.html Twig internals
+     * @param mixed $markup Specifies the markup content.
+     * Use FALSE to load the content from the markup section.
+     * @return Twig_Node_Module A node tree
+     */
+    public function getTwigNodeTree($markup = false)
+    {
+        $loader = new TwigLoader();
+        $twig = new Twig_Environment($loader, []);
+        $twig->addExtension(new CmsTwigExtension());
+        $twig->addExtension(new SystemTwigExtension);
+
+        $stream = $twig->tokenize($markup === false ? $this->markup : $markup, 'getTwigNodeTree');
+        return $twig->parse($stream);
     }
 }

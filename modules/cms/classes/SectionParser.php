@@ -1,5 +1,8 @@
 <?php namespace Cms\Classes;
 
+use Ini;
+use Str;
+
 /**
  * This class parses CMS object files (pages, partials and layouts).
  * Returns the structured file information.
@@ -44,7 +47,7 @@ class SectionParser
         ];
 
         if ($count >= 3) {
-            $result['settings'] = parse_ini_string($sections[0], true);
+            $result['settings'] = Ini::parse($sections[0], true);
             $result['code'] = $sections[1];
 
             $result['code'] = preg_replace('/^\s*\<\?php/', '', $result['code']);
@@ -54,7 +57,7 @@ class SectionParser
             $result['markup'] = $sections[2];
         }
         elseif ($count == 2) {
-            $result['settings'] = parse_ini_string($sections[0], true);
+            $result['settings'] = Ini::parse($sections[0], true);
             $result['markup'] = $sections[1];
         }
         elseif ($count == 1) {
@@ -72,6 +75,7 @@ class SectionParser
      */
     public static function parseOffset($content)
     {
+        $content = Str::normalizeEol($content);
         $sections = preg_split('/^={2,}\s*/m', $content, -1);
         $count = count($sections);
 

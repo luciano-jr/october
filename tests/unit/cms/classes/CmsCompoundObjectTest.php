@@ -1,8 +1,8 @@
 <?php
 
-use Cms\Classes\CmsCompoundObject;
-use Cms\Classes\CmsObject;
 use Cms\Classes\Theme;
+use Cms\Classes\CmsObject;
+use Cms\Classes\CmsCompoundObject;
 
 class TestCmsCompoundObject extends CmsCompoundObject
 {
@@ -60,6 +60,30 @@ class CmsCompoundObjectTest extends TestCase
         $this->assertArrayHasKey('testArchive', $obj->settings['components']);
         $this->assertArrayHasKey('posts-per-page', $obj->settings['components']['testArchive']);
         $this->assertEquals(10, $obj->settings['components']['testArchive']['posts-per-page']);
+    }
+
+    public function testHasComponent()
+    {
+        $theme = Theme::load('test');
+
+        $obj = TestCmsCompoundObject::load($theme, 'components.htm');
+        $this->assertArrayHasKey('components', $obj->settings);
+
+        $this->assertInternalType('array', $obj->settings['components']);
+        $this->assertArrayHasKey('testArchive firstAlias', $obj->settings['components']);
+        $this->assertArrayHasKey('October\Tester\Components\Post secondAlias', $obj->settings['components']);
+
+        // Explicit
+        $this->assertEquals('testArchive firstAlias', $obj->hasComponent('testArchive'));
+        $this->assertEquals('October\Tester\Components\Post secondAlias', $obj->hasComponent('October\Tester\Components\Post'));
+
+        // Resolved
+        $this->assertEquals('testArchive firstAlias', $obj->hasComponent('October\Tester\Components\Archive'));
+        $this->assertEquals('October\Tester\Components\Post secondAlias', $obj->hasComponent('testPost'));
+
+        // Negative test
+        $this->assertFalse($obj->hasComponent('yooHooBigSummerBlowOut'));
+        $this->assertFalse($obj->hasComponent('October\Tester\Components\BigSummer'));
     }
 
     public function testCache()
@@ -162,7 +186,7 @@ class CmsCompoundObjectTest extends TestCase
         $this->assertFileExists($referenceFilePath);
 
         $this->assertFileExists($destFilePath);
-        $this->assertFileEquals($referenceFilePath, $destFilePath);
+        $this->assertFileEqualsNormalized($referenceFilePath, $destFilePath);
     }
 
     public function testSaveMarkupAndSettings()
@@ -187,7 +211,7 @@ class CmsCompoundObjectTest extends TestCase
         $this->assertFileExists($referenceFilePath);
 
         $this->assertFileExists($destFilePath);
-        $this->assertFileEquals($referenceFilePath, $destFilePath);
+        $this->assertFileEqualsNormalized($referenceFilePath, $destFilePath);
     }
 
     public function testSaveFull()
@@ -195,8 +219,9 @@ class CmsCompoundObjectTest extends TestCase
         $theme = Theme::load('apitest');
 
         $destFilePath = $theme->getPath().'/testobjects/compound.htm';
-        if (file_exists($destFilePath))
+        if (file_exists($destFilePath)) {
             unlink($destFilePath);
+        }
 
         $this->assertFileNotExists($destFilePath);
 
@@ -213,6 +238,22 @@ class CmsCompoundObjectTest extends TestCase
         $this->assertFileExists($referenceFilePath);
 
         $this->assertFileExists($destFilePath);
-        $this->assertFileEquals($referenceFilePath, $destFilePath);
+        $this->assertFileEqualsNormalized($referenceFilePath, $destFilePath);
     }
+
+   //
+   // Helpers
+   //
+
+   protected function assertFileEqualsNormalized($expected, $actual)
+   {
+        $expected = file_get_contents($expected);
+        $expected = preg_replace('~\R~u', PHP_EOL, $expected); // Normalize EOL
+
+        $actual = file_get_contents($actual);
+        $actual = preg_replace('~\R~u', PHP_EOL, $actual); // Normalize EOL
+
+        $this->assertEquals($expected, $actual);
+   }
+
 }

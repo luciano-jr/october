@@ -1,8 +1,8 @@
 <?php namespace Backend\FormWidgets;
 
 use Lang;
+use ApplicationException;
 use Backend\Classes\FormWidgetBase;
-use System\Classes\SystemException;
 
 /**
  * Record Finder
@@ -11,35 +11,20 @@ use System\Classes\SystemException;
  *    user:
  *        label: User
  *        type: recordfinder
- *        list: @/plugins/rainlab/user/models/user/columns.yaml
+ *        list: ~/plugins/rainlab/user/models/user/columns.yaml
+ *        title: Find Record
  *        prompt: Click the Find button to find a user
  *        nameFrom: name
  *        descriptionFrom: email
- * 
+ *
  * @package october\backend
  * @author Alexey Bobkov, Samuel Georges
  */
 class RecordFinder extends FormWidgetBase
 {
-    /**
-     * {@inheritDoc}
-     */
-    public $defaultAlias = 'recordfinder';
-
-    /**
-     * @var string Relationship type
-     */
-    public $relationType;
-
-    /**
-     * @var string Relationship name
-     */
-    public $relationName;
-
-    /**
-     * @var Model Relationship model
-     */
-    public $relationModel;
+    //
+    // Configurable properties
+    //
 
     /**
      * @var string Field name to use for key.
@@ -57,9 +42,28 @@ class RecordFinder extends FormWidgetBase
     public $descriptionFrom;
 
     /**
+     * @var string Text to display for the title of the popup list form
+     */
+    public $title = 'backend::lang.recordfinder.find_record';
+
+    /**
      * @var string Prompt to display if no record is selected.
      */
-    public $prompt;
+    public $prompt = 'Click the %s button to find a record';
+
+    //
+    // Object properties
+    //
+
+    /**
+     * {@inheritDoc}
+     */
+    protected $defaultAlias = 'recordfinder';
+
+    /**
+     * @var Model Relationship model
+     */
+    public $relationModel;
 
     /**
      * @var Backend\Classes\WidgetBase Reference to the widget used for viewing (list or form).
@@ -76,29 +80,13 @@ class RecordFinder extends FormWidgetBase
      */
     public function init()
     {
-        $this->relationName = $this->formField->valueFrom;
-        $this->relationType = $this->model->getRelationType($this->relationName);
-
-        $this->prompt = $this->getConfig('prompt', 'Click the %s button to find a record');
-        $this->keyFrom = $this->getConfig('keyFrom', $this->keyFrom);
-        $this->nameFrom = $this->getConfig('nameFrom', $this->nameFrom);
-        $this->descriptionFrom = $this->getConfig('descriptionFrom', $this->descriptionFrom);
-
-        /* @todo Remove lines if year >= 2015 */
-        if ($this->getConfig('nameColumn')) {
-            $this->nameFrom = $this->getConfig('nameColumn');
-        }
-        /* @todo Remove lines if year >= 2015 */
-        if ($this->getConfig('descriptionColumn')) {
-            $this->descriptionFrom = $this->getConfig('descriptionColumn');
-        }
-
-        if (!$this->model->hasRelation($this->relationName)) {
-            throw new SystemException(Lang::get('backend::lang.model.missing_relation', [
-                'class' => get_class($this->controller),
-                'relation' => $this->relationName
-            ]));
-        }
+        $this->fillFromConfig([
+            'title',
+            'prompt',
+            'keyFrom',
+            'nameFrom',
+            'descriptionFrom',
+        ]);
 
         if (post('recordfinder_flag')) {
             $this->listWidget = $this->makeListWidget();
@@ -120,6 +108,25 @@ class RecordFinder extends FormWidgetBase
     }
 
     /**
+     * Returns the model of a relation type,
+     * supports nesting via HTML array.
+     * @return Relation
+     */
+    protected function getRelationModel()
+    {
+        list($model, $attribute) = $this->resolveModelAttribute($this->valueFrom);
+
+        if (!$model->hasRelation($attribute)) {
+            throw new ApplicationException(Lang::get('backend::lang.model.missing_relation', [
+                'class' => get_class($model),
+                'relation' => $attribute
+            ]));
+        }
+
+        return $model->makeRelation($attribute);
+    }
+
+    /**
      * {@inheritDoc}
      */
     public function render()
@@ -130,7 +137,7 @@ class RecordFinder extends FormWidgetBase
 
     public function onRefresh()
     {
-        list($model, $attribute) = $this->getModelArrayAttribute($this->valueFrom);
+        list($model, $attribute) = $this->resolveModelAttribute($this->valueFrom);
         $model->{$attribute} = post($this->formField->getName());
 
         $this->prepareVars();
@@ -142,8 +149,7 @@ class RecordFinder extends FormWidgetBase
      */
     public function prepareVars()
     {
-        // This should be a relation and return a Model
-        $this->relationModel = $this->getLoadData();
+        $this->relationModel = $this->getLoadValue();
 
         $this->vars['value'] = $this->getKeyValue();
         $this->vars['field'] = $this->formField;
@@ -151,13 +157,14 @@ class RecordFinder extends FormWidgetBase
         $this->vars['descriptionValue'] = $this->getDescriptionValue();
         $this->vars['listWidget'] = $this->listWidget;
         $this->vars['searchWidget'] = $this->searchWidget;
-        $this->vars['prompt'] = str_replace('%s', '<i class="icon-th-list"></i>', $this->prompt);
+        $this->vars['title'] = $this->title;
+        $this->vars['prompt'] = str_replace('%s', '<i class="icon-th-list"></i>', e(trans($this->prompt)));
     }
 
     /**
      * {@inheritDoc}
      */
-    public function loadAssets()
+    protected function loadAssets()
     {
         $this->addJs('js/recordfinder.js', 'core');
     }
@@ -165,9 +172,23 @@ class RecordFinder extends FormWidgetBase
     /**
      * {@inheritDoc}
      */
-    public function getSaveData($value)
+    public function getSaveValue($value)
     {
         return strlen($value) ? $value : null;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getLoadValue()
+    {
+        list($model, $attribute) = $this->resolveModelAttribute($this->valueFrom);
+
+        if (!is_null($model)) {
+            return $model->{$attribute};
+        }
+
+        return null;
     }
 
     public function getKeyValue()
@@ -206,12 +227,12 @@ class RecordFinder extends FormWidgetBase
     protected function makeListWidget()
     {
         $config = $this->makeConfig($this->getConfig('list'));
-        $config->model = $this->model->makeRelation($this->relationName);
+        $config->model = $this->getRelationModel();
         $config->alias = $this->alias . 'List';
         $config->showSetup = false;
         $config->showCheckboxes = false;
         $config->recordsPerPage = 20;
-        $config->recordOnClick = sprintf("$('#%s').recordFinder('updateRecord', this, ':id')", $this->getId());
+        $config->recordOnClick = sprintf("$('#%s').recordFinder('updateRecord', this, ':" . $this->keyFrom . "')", $this->getId());
         $widget = $this->makeWidget('Backend\Widgets\Lists', $config);
 
         // $widget->bindEvent('list.extendQueryBefore', function($query) {

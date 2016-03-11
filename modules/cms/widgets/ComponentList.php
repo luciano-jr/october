@@ -1,15 +1,14 @@
 <?php namespace Cms\Widgets;
 
-use Backend\Classes\WidgetBase;
+use Str;
+use Lang;
+use Input;
+use Request;
+use Response;
 use Cms\Classes\Theme;
 use System\Classes\PluginManager;
 use Cms\Classes\ComponentHelpers;
-use October\Rain\Support\Inflector;
-use Input;
-use Response;
-use Request;
-use Str;
-use Lang;
+use Backend\Classes\WidgetBase;
 
 /**
  * Component list widget.
@@ -40,7 +39,7 @@ class ComponentList extends WidgetBase
     public function render()
     {
         return $this->makePartial('body', [
-            'data'=>$this->getData()
+            'data' => $this->getData()
         ]);
     }
 
@@ -112,6 +111,11 @@ class ComponentList extends WidgetBase
                 $className = $componentInfo->className;
                 $alias = $componentInfo->alias;
                 $component = new $className();
+
+                if ($component->isHidden) {
+                    continue;
+                }
+
                 $componentDetails = $component->componentDetails();
                 $component->alias = '--alias--';
 

@@ -8,7 +8,7 @@ use Backend;
 use Redirect;
 use BackendMenu;
 use Backend\Classes\Controller;
-use System\Classes\ApplicationException;
+use ApplicationException;
 use System\Classes\SettingsManager;
 use Exception;
 
@@ -21,12 +21,11 @@ use Exception;
  */
 class AccessLogs extends Controller
 {
-
     public $implement = [
         'Backend.Behaviors.ListController'
     ];
 
-    public $requiredPermissions = ['system.access_access_logs'];
+    public $requiredPermissions = ['system.access_logs'];
 
     public $listConfig = 'config_list.yaml';
 
@@ -36,5 +35,10 @@ class AccessLogs extends Controller
 
         BackendMenu::setContext('October.System', 'system', 'settings');
         SettingsManager::setContext('October.Backend', 'access_logs');
+    }
+
+    public function index_onRefresh()
+    {
+        return $this->listRefresh();
     }
 }

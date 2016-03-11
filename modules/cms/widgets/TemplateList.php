@@ -161,7 +161,7 @@ class TemplateList extends WidgetBase
         }
 
         usort($normalizedItems, function ($a, $b) {
-            return strcmp($a->title, $b->title);
+            return strcmp($a->fileName, $b->fileName);
         });
 
         /*
@@ -304,7 +304,8 @@ class TemplateList extends WidgetBase
                 return true;
             }
         }
-        elseif (Str::$operator(Str::lower($item->fileName), $word)) {
+
+        if (Str::$operator(Str::lower($item->fileName), $word)) {
             return true;
         }
 

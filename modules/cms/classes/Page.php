@@ -1,9 +1,9 @@
 <?php namespace Cms\Classes;
 
-use Cms\Classes\Theme;
-use System\Classes\ApplicationException;
-use Cms\Classes\Layout;
 use Lang;
+use Cms\Classes\Theme;
+use Cms\Classes\Layout;
+use ApplicationException;
 
 /**
  * The CMS page class.
@@ -14,13 +14,14 @@ use Lang;
 class Page extends CmsCompoundObject
 {
     /**
-     * @var array The API bag allows the API handler code to bind arbitrary data to the page object.
+     * @var array The API bag allows the API handler code to bind arbitrary
+     * data to the page object.
      */
     public $apiBag = [];
 
     protected $settingsValidationRules = [
         'title' => 'required',
-        'url'   => ['required', 'regex:/^\/[a-z0-9\/\:_\-\*\[\]\+\?\|\.\^\$]*$/i']
+        'url'   => ['required', 'regex:/^\/[a-z0-9\/\:_\-\*\[\]\+\?\|\.\^\\\$]*$/i']
     ];
 
     /**
@@ -99,21 +100,19 @@ class Page extends CmsCompoundObject
     /**
      * Helper that makes a URL for a page in the active theme.
      * @param mixed $page Specifies the Cms Page file name.
+     * @param array $params Route parameters to consider in the URL.
      * @return string
      */
-    public static function url($page, $params = [], $absolute = true)
+    public static function url($page, $params = [])
     {
         /*
          * Reuse existing controller or create a new one,
          * assuming that the method is called not during the front-end
          * request processing.
          */
-        $controller = Controller::getController();
-        if (!$controller) {
-            $controller = new Controller;
-        }
+        $controller = Controller::getController() ?: new Controller;
 
-        return $controller->pageUrl($page, $params, true, $absolute);
+        return $controller->pageUrl($page, $params, true);
     }
 
     /**
@@ -142,7 +141,7 @@ class Page extends CmsCompoundObject
             $pages = self::listInTheme($theme, true);
 
             foreach ($pages as $page) {
-                $references[$page->getBaseFileName()] = $page->title;
+                $references[$page->getBaseFileName()] = $page->title . ' ['.$page->getBaseFileName().']';
             }
 
             $result = [
@@ -167,8 +166,8 @@ class Page extends CmsCompoundObject
      * - items - an array of arrays with the same keys (url, isActive, items) + the title key. 
      *   The items array should be added only if the $item's $nesting property value is TRUE.
      * @param \RainLab\Pages\Classes\MenuItem $item Specifies the menu item.
-     * @param \Cms\Classes\Theme $theme Specifies the current theme.
      * @param string $url Specifies the current page URL, normalized, in lower case
+     * @param \Cms\Classes\Theme $theme Specifies the current theme.
      * The URL is specified relative to the website root, it includes the subdirectory name, if any.
      * @return mixed Returns an array. Returns null if the item cannot be resolved.
      */
@@ -182,12 +181,36 @@ class Page extends CmsCompoundObject
             }
 
             $page = self::loadCached($theme, $item->reference);
-            $pageUrl = self::url($item->reference);
+            $controller = Controller::getController() ?: new Controller;
+            $pageUrl = $controller->pageUrl($item->reference, [], false);
 
             $result = [];
             $result['url'] = $pageUrl;
             $result['isActive'] = $pageUrl == $url;
             $result['mtime'] = $page ? $page->mtime : null;
+        }
+
+        return $result;
+    }
+
+    /**
+     * Handler for the backend.richeditor.getTypeInfo event.
+     * Returns a menu item type information. The type information is returned as array
+     * @param string $type Specifies the page link type
+     * @return array
+     */
+    public static function getRichEditorTypeInfo($type)
+    {
+        $result = [];
+
+        if ($type == 'cms-page') {
+            $theme = Theme::getActiveTheme();
+            $pages = self::listInTheme($theme, true);
+
+            foreach ($pages as $page) {
+                $url = self::url($page->getBaseFileName());
+                $result[$url] = $page->title;
+            }
         }
 
         return $result;

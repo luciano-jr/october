@@ -3,7 +3,8 @@
 use Str;
 use Lang;
 use Event;
-use System\Classes\SystemException;
+use Flash;
+use ApplicationException;
 use Backend\Classes\ControllerBehavior;
 
 /**
@@ -15,7 +16,6 @@ use Backend\Classes\ControllerBehavior;
  */
 class ListController extends ControllerBehavior
 {
-
     /**
      * @var array List definitions, keys for alias and value for configuration.
      */
@@ -56,7 +56,6 @@ class ListController extends ControllerBehavior
     /**
      * Behavior constructor
      * @param Backend\Classes\Controller $controller
-     * @return void
      */
     public function __construct($controller)
     {
@@ -109,7 +108,7 @@ class ListController extends ControllerBehavior
          * Create the model
          */
         $class = $listConfig->modelClass;
-        $model = new $class();
+        $model = new $class;
         $model = $this->controller->listExtendModel($model, $definition);
 
         /*
@@ -213,8 +212,14 @@ class ListController extends ControllerBehavior
              * Filter the list when the scopes are changed
              */
             $filterWidget->bindEvent('filter.update', function () use ($widget, $filterWidget) {
-                $widget->addFilter([$filterWidget, 'applyAllScopesToQuery']);
                 return $widget->onRefresh();
+            });
+
+            /*
+             * Extend the query of the list of options
+             */
+            $filterWidget->bindEvent('filter.extendQuery', function($query, $scope) {
+                $this->controller->listFilterExtendQuery($query, $scope);
             });
 
             // Apply predefined filter values
@@ -232,12 +237,78 @@ class ListController extends ControllerBehavior
      */
     public function index()
     {
-        $this->controller->pageTitle = $this->controller->pageTitle ?: trans($this->getConfig(
+        $this->controller->pageTitle = $this->controller->pageTitle ?: Lang::get($this->getConfig(
             'title',
             'backend::lang.list.default_title'
         ));
         $this->controller->bodyClass = 'slim-container';
         $this->makeLists();
+    }
+
+    /**
+     * Bulk delete records.
+     * @return void
+     */
+    public function index_onDelete()
+    {
+        if (method_exists($this->controller, 'onDelete')) {
+            return call_user_func_array([$this->controller, 'onDelete'], func_get_args());
+        }
+
+        /*
+         * Validate checked identifiers
+         */
+        $checkedIds = post('checked');
+
+        if (!$checkedIds || !is_array($checkedIds) || !count($checkedIds)) {
+            Flash::error(Lang::get('backend::lang.list.delete_selected_empty'));
+            return $this->controller->listRefresh();
+        }
+
+        /*
+         * Establish the list definition
+         */
+        $definition = post('definition', $this->primaryDefinition);
+
+        if (!isset($this->listDefinitions[$definition])) {
+            throw new ApplicationException(Lang::get('backend::lang.list.missing_parent_definition', compact('definition')));
+        }
+
+        $listConfig = $this->makeConfig($this->listDefinitions[$definition], $this->requiredConfig);
+
+        /*
+         * Create the model
+         */
+        $class = $listConfig->modelClass;
+        $model = new $class;
+        $model = $this->controller->listExtendModel($model, $definition);
+
+        /*
+         * Create the query
+         */
+        $query = $model->newQuery();
+        $this->controller->listExtendQueryBefore($query, $definition);
+
+        $query->whereIn($model->getKeyName(), $checkedIds);
+        $this->controller->listExtendQuery($query, $definition);
+
+        /*
+         * Delete records
+         */
+        $records = $query->get();
+
+        if ($records->count()) {
+            foreach ($records as $record) {
+                $record->delete();
+            }
+
+            Flash::success(Lang::get('backend::lang.list.delete_selected_success'));
+        }
+        else {
+            Flash::error(Lang::get('backend::lang.list.delete_selected_empty'));
+        }
+
+        return $this->controller->listRefresh();
     }
 
     /**
@@ -248,7 +319,7 @@ class ListController extends ControllerBehavior
     public function listRender($definition = null)
     {
         if (!count($this->listWidgets)) {
-            throw new SystemException(Lang::get('backend::lang.list.behavior_not_ready'));
+            throw new ApplicationException(Lang::get('backend::lang.list.behavior_not_ready'));
         }
 
         if (!$definition || !isset($this->listDefinitions[$definition])) {
@@ -352,6 +423,16 @@ class ListController extends ControllerBehavior
     }
 
     /**
+     * Controller override: Extend the query used for populating the filter 
+     * options before the default query is processed.
+     * @param October\Rain\Database\Builder $query
+     * @param array $scope
+     */
+    public function listFilterExtendQuery($query, $scope)
+    {
+    }
+
+    /**
      * Returns a CSS class name for a list row (<tr class="...">).
      * @param  Model $record The populated model used for the column
      * @param  string $definition List definition (optional)
@@ -394,7 +475,7 @@ class ListController extends ControllerBehavior
             if (!is_a($widget->getController(), $calledClass)) {
                 return;
             }
-            $callback($widget, $widget->model);
+            call_user_func_array($callback, [$widget, $widget->model]);
         });
     }
 }

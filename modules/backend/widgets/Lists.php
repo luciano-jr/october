@@ -1,6 +1,6 @@
 <?php namespace Backend\Widgets;
 
-use DB as Db;
+use Db;
 use HTML as Html;
 use App;
 use Lang;
@@ -9,10 +9,12 @@ use Event;
 use Backend;
 use DbDongle;
 use Carbon\Carbon;
+use October\Rain\Html\Helper as HtmlHelper;
 use October\Rain\Router\Helper as RouterHelper;
+use System\Helpers\DateTime as DateTimeHelper;
 use Backend\Classes\ListColumn;
 use Backend\Classes\WidgetBase;
-use System\Classes\ApplicationException;
+use ApplicationException;
 use October\Rain\Database\Model;
 use DateTime;
 
@@ -25,35 +27,19 @@ use DateTime;
  */
 class Lists extends WidgetBase
 {
+    //
+    // Configurable properties
+    //
+
     /**
-     * {@inheritDoc}
+     * @var array List column configuration.
      */
-    public $defaultAlias = 'list';
+    public $columns;
 
     /**
      * @var Model List model object.
      */
     public $model;
-
-    /**
-     * @var array Override default columns with supplied key names.
-     */
-    public $columnOverride;
-
-    /**
-     * @var array Columns to display and their order.
-     */
-    protected $visibleColumns;
-
-    /**
-     * @var array Collection of all list columns used in this list.
-     */
-    protected $columns;
-
-    /**
-     * @var array Model data collection.
-     */
-    protected $records;
 
     /**
      * @var string Link for each record row. Replace :id with the record id.
@@ -66,24 +52,14 @@ class Lists extends WidgetBase
     public $recordOnClick;
 
     /**
+     * @var string Message to display when there are no records in the list.
+     */
+    public $noRecordsMessage = 'backend::lang.list.no_records';
+
+    /**
      * @var int Maximum rows to display for each page.
      */
     public $recordsPerPage;
-
-    /**
-     * @var string Message to display when there are no records in the list.
-     */
-    public $noRecordsMessage = 'No records found';
-
-    /**
-     * @var string Filter the records by a search term.
-     */
-    protected $searchTerm;
-
-    /**
-     * @var array Collection of functions to apply to each list query.
-     */
-    protected $filterCallbacks = [];
 
     /**
      * @var bool Shows the sorting options for each column.
@@ -91,24 +67,9 @@ class Lists extends WidgetBase
     public $showSorting = true;
 
     /**
-     * @var array All sortable columns.
-     */
-    protected $sortableColumns;
-
-    /**
      * @var mixed A default sort column to look for.
      */
     public $defaultSort;
-
-    /**
-     * @var string Sets the list sorting column.
-     */
-    public $sortColumn;
-
-    /**
-     * @var string Sets the list sorting direction (asc, desc)
-     */
-    public $sortDirection;
 
     /**
      * @var bool Display a checkbox next to each record row.
@@ -121,11 +82,6 @@ class Lists extends WidgetBase
     public $showSetup = false;
 
     /**
-     * @var bool Display pagination when limiting records per page.
-     */
-    public $showPagination = false;
-
-    /**
      * @var bool Display parent/child relationships in the list.
      */
     public $showTree = false;
@@ -134,6 +90,71 @@ class Lists extends WidgetBase
      * @var bool Expand the tree nodes by default.
      */
     public $treeExpanded = false;
+
+    /**
+     * @var bool|string Display pagination when limiting records per page.
+     */
+    public $showPagination = 'auto';
+
+    //
+    // Object properties
+    //
+
+    /**
+     * {@inheritDoc}
+     */
+    protected $defaultAlias = 'list';
+
+    /**
+     * @var array Collection of all list columns used in this list.
+     * @see Backend\Classes\ListColumn
+     */
+    protected $allColumns;
+
+    /**
+     * @var array Override default columns with supplied key names.
+     */
+    protected $columnOverride;
+
+    /**
+     * @var array Columns to display and their order.
+     */
+    protected $visibleColumns;
+
+    /**
+     * @var array Model data collection.
+     */
+    protected $records;
+
+    /**
+     * @var int Current page number.
+     */
+    protected $currentPageNumber;
+
+    /**
+     * @var string Filter the records by a search term.
+     */
+    protected $searchTerm;
+
+    /**
+     * @var array Collection of functions to apply to each list query.
+     */
+    protected $filterCallbacks = [];
+
+    /**
+     * @var array All sortable columns.
+     */
+    protected $sortableColumns;
+
+    /**
+     * @var string Sets the list sorting column.
+     */
+    protected $sortColumn;
+
+    /**
+     * @var string Sets the list sorting direction (asc, desc)
+     */
+    protected $sortDirection;
 
     /**
      * @var array List of CSS classes to apply to the list container element
@@ -145,32 +166,39 @@ class Lists extends WidgetBase
      */
     public function init()
     {
-        $this->validateModel();
+        $this->fillFromConfig([
+            'columns',
+            'model',
+            'recordUrl',
+            'recordOnClick',
+            'noRecordsMessage',
+            'recordsPerPage',
+            'showSorting',
+            'defaultSort',
+            'showCheckboxes',
+            'showSetup',
+            'showTree',
+            'treeExpanded',
+            'showPagination',
+        ]);
 
         /*
          * Configure the list widget
          */
-        $this->recordUrl = $this->getConfig('recordUrl', $this->recordUrl);
-        $this->recordOnClick = $this->getConfig('recordOnClick', $this->recordOnClick);
-        $this->recordsPerPage = $this->getSession(
-            'per_page',
-            $this->getConfig('recordsPerPage', $this->recordsPerPage)
-        );
-        $this->noRecordsMessage = $this->getConfig('noRecordsMessage', $this->noRecordsMessage);
-        $this->defaultSort = $this->getConfig('defaultSort', $this->defaultSort);
-        $this->showSorting = $this->getConfig('showSorting', $this->showSorting);
-        $this->showSetup = $this->getConfig('showSetup', $this->showSetup);
-        $this->showCheckboxes = $this->getConfig('showCheckboxes', $this->showCheckboxes);
-        $this->showTree = $this->getConfig('showTree', $this->showTree);
-        $this->treeExpanded = $this->getConfig('treeExpanded', $this->treeExpanded);
-        $this->showPagination = $this->recordsPerPage && $this->recordsPerPage > 0;
+        $this->recordsPerPage = $this->getSession('per_page', $this->recordsPerPage);
+
+        if ($this->showPagination == 'auto') {
+            $this->showPagination = $this->recordsPerPage && $this->recordsPerPage > 0;
+        }
+
+        $this->validateModel();
         $this->validateTree();
     }
 
     /**
      * {@inheritDoc}
      */
-    public function loadAssets()
+    protected function loadAssets()
     {
         $this->addJs('js/october.list.js', 'core');
     }
@@ -190,7 +218,7 @@ class Lists extends WidgetBase
     public function prepareVars()
     {
         $this->vars['cssClasses'] = implode(' ', $this->cssClasses);
-        $this->vars['columns'] = $this->getVisibleListColumns();
+        $this->vars['columns'] = $this->getVisibleColumns();
         $this->vars['columnTotal'] = $this->getTotalColumns();
         $this->vars['records'] = $this->getRecords();
         $this->vars['noRecordsMessage'] = trans($this->noRecordsMessage);
@@ -204,11 +232,11 @@ class Lists extends WidgetBase
         $this->vars['treeLevel'] = 0;
 
         if ($this->showPagination) {
-            $this->vars['recordTotal'] = $this->records->getTotal();
-            $this->vars['pageCurrent'] = $this->records->getCurrentPage();
-            $this->vars['pageLast'] = $this->records->getLastPage();
-            $this->vars['pageFrom'] = $this->records->getFrom();
-            $this->vars['pageTo'] = $this->records->getTo();
+            $this->vars['recordTotal'] = $this->records->total();
+            $this->vars['pageCurrent'] = $this->records->currentPage();
+            $this->vars['pageLast'] = $this->records->lastPage();
+            $this->vars['pageFrom'] = $this->records->firstItem();
+            $this->vars['pageTo'] = $this->records->lastItem();
         }
         else {
             $this->vars['recordTotal'] = $this->records->count();
@@ -230,7 +258,7 @@ class Lists extends WidgetBase
      */
     public function onPaginate()
     {
-        App::make('paginator')->setCurrentPage(post('page'));
+        $this->currentPageNumber = post('page');
         return $this->onRefresh();
     }
 
@@ -240,8 +268,6 @@ class Lists extends WidgetBase
      */
     protected function validateModel()
     {
-        $this->model = $this->getConfig('model');
-
         if (!$this->model) {
             throw new ApplicationException(Lang::get(
                 'backend::lang.list.missing_model',
@@ -313,7 +339,7 @@ class Lists extends WidgetBase
                 else {
                     $columnName = isset($column->sqlSelect)
                         ? DbDongle::raw($this->parseTableName($column->sqlSelect, $primaryTable))
-                        : $primaryTable . '.' . $column->columnName;
+                        : Db::getTablePrefix() . $primaryTable . '.' . $column->columnName;
 
                     $primarySearchable[] = $columnName;
                 }
@@ -323,7 +349,7 @@ class Lists extends WidgetBase
         /*
          * Prepare related eager loads (withs) and custom selects (joins)
          */
-        foreach ($this->getVisibleListColumns() as $column) {
+        foreach ($this->getVisibleColumns() as $column) {
 
             if (!$this->isColumnRelated($column) || (!isset($column->sqlSelect) && !isset($column->valueFrom))) {
                 continue;
@@ -337,25 +363,6 @@ class Lists extends WidgetBase
         }
 
         /*
-         * Include any relation constraints
-         */
-        if ($joins) {
-            foreach (array_unique($joins) as $join) {
-                /*
-                 * Apply a supplied search term for relation columns and
-                 * constrain the query only if there is something to search for
-                 */
-                $columnsToSearch = array_get($relationSearchable, $join, []);
-
-                if (count($columnsToSearch) > 0) {
-                    $query->whereHas($join, function ($_query) use ($columnsToSearch) {
-                        $_query->searchWhere($this->searchTerm, $columnsToSearch);
-                    });
-                }
-            }
-        }
-
-        /*
          * Add eager loads to the query
          */
         if ($withs) {
@@ -363,28 +370,67 @@ class Lists extends WidgetBase
         }
 
         /*
+         * Apply search term
+         */
+        $query->where(function ($innerQuery) use ($primarySearchable, $relationSearchable, $joins) {
+
+            /*
+             * Search primary columns
+             */
+            if (count($primarySearchable) > 0) {
+                $innerQuery->orSearchWhere($this->searchTerm, $primarySearchable);
+            }
+
+            /*
+             * Search relation columns
+             */
+            if ($joins) {
+                foreach (array_unique($joins) as $join) {
+                    /*
+                     * Apply a supplied search term for relation columns and
+                     * constrain the query only if there is something to search for
+                     */
+                    $columnsToSearch = array_get($relationSearchable, $join, []);
+
+                    if (count($columnsToSearch) > 0) {
+                        $innerQuery->orWhereHas($join, function ($_query) use ($columnsToSearch) {
+                            $_query->searchWhere($this->searchTerm, $columnsToSearch);
+                        });
+                    }
+                }
+            }
+
+        });
+
+        /*
          * Custom select queries
          */
-        foreach ($this->getVisibleListColumns() as $column) {
+        foreach ($this->getVisibleColumns() as $column) {
             if (!isset($column->sqlSelect)) {
                 continue;
             }
 
-            $alias = Db::getQueryGrammar()->wrap($column->columnName);
+            $alias = $query->getQuery()->getGrammar()->wrap($column->columnName);
 
             /*
              * Relation column
              */
             if (isset($column->relation)) {
-                $table =  $this->model->makeRelation($column->relation)->getTable();
+
+                // @todo Find a way...
                 $relationType = $this->model->getRelationType($column->relation);
+                if ($relationType == 'morphTo') {
+                    throw new ApplicationException('The relationship morphTo is not supported for list columns.');
+                }
+
+                $table =  $this->model->makeRelation($column->relation)->getTable();
                 $sqlSelect = $this->parseTableName($column->sqlSelect, $table);
 
                 /*
                  * Manipulate a count query for the sub query
                  */
                 $relationObj = $this->model->{$column->relation}();
-                $countQuery = $relationObj->getRelationCountQuery($relationObj->getRelated()->newQuery(), $query);
+                $countQuery = $relationObj->getRelationCountQuery($relationObj->getRelated()->newQueryWithoutScopes(), $query);
 
                 $joinSql = $this->isColumnRelated($column, true)
                     ? DbDongle::raw("group_concat(" . $sqlSelect . " separator ', ')")
@@ -404,20 +450,13 @@ class Lists extends WidgetBase
         }
 
         /*
-         * Apply a supplied search term for primary columns
-         */
-        if (count($primarySearchable) > 0) {
-            $query->orWhere(function ($innerQuery) use ($primarySearchable) {
-                $innerQuery->searchWhere($this->searchTerm, $primarySearchable);
-            });
-        }
-
-        /*
          * Apply sorting
          */
         if ($sortColumn = $this->getSortColumn()) {
-            if (($column = array_get($this->columns, $sortColumn)) && $column->valueFrom) {
-                $sortColumn = $column->valueFrom;
+            if (($column = array_get($this->allColumns, $sortColumn)) && $column->valueFrom) {
+                $sortColumn = $this->isColumnPivot($column)
+                    ? 'pivot_' . $column->valueFrom
+                    : $column->valueFrom;
             }
 
             $query->orderBy($sortColumn, $this->sortDirection);
@@ -438,8 +477,12 @@ class Lists extends WidgetBase
         /*
          * Extensibility
          */
-        Event::fire('backend.list.extendQuery', [$this, $query]);
-        $this->fireEvent('list.extendQuery', [$query]);
+        if (
+            ($event = $this->fireEvent('list.extendQuery', [$query], true)) ||
+            ($event = Event::fire('backend.list.extendQuery', [$this, $query], true))
+        ) {
+            return $event;
+        }
 
         return $query;
     }
@@ -456,7 +499,7 @@ class Lists extends WidgetBase
         else {
             $model = $this->prepareModel();
             $records = ($this->showPagination)
-                ? $model->paginate($this->recordsPerPage)
+                ? $model->paginate($this->recordsPerPage, $this->currentPageNumber)
                 : $model->get();
 
         }
@@ -479,8 +522,12 @@ class Lists extends WidgetBase
             return null;
         }
 
-        $columns = array_keys($record->getAttributes());
-        $url = RouterHelper::parseValues($record, $columns, $this->recordUrl);
+        $data = $record->toArray();
+        $data += [$record->getKeyName() => $record->getKey()];
+
+        $columns = array_keys($data);
+
+        $url = RouterHelper::parseValues($data, $columns, $this->recordUrl);
         return Backend::url($url);
     }
 
@@ -506,7 +553,7 @@ class Lists extends WidgetBase
      */
     public function getColumns()
     {
-        return $this->columns ?: $this->defineListColumns();
+        return $this->allColumns ?: $this->defineListColumns();
     }
 
     /**
@@ -516,13 +563,13 @@ class Lists extends WidgetBase
      */
     public function getColumn($column)
     {
-        return $this->columns[$column];
+        return $this->allColumns[$column];
     }
 
     /**
      * Returns the list columns that are visible by list settings or default
      */
-    protected function getVisibleListColumns()
+    public function getVisibleColumns()
     {
         $definitions = $this->defineListColumns();
         $columns = [];
@@ -544,7 +591,8 @@ class Lists extends WidgetBase
                 ));
             }
 
-            foreach ($this->columnOverride as $columnName) {
+            $availableColumns = array_intersect($this->columnOverride, array_keys($definitions));
+            foreach ($availableColumns as $columnName) {
                 $definitions[$columnName]->invisible = false;
                 $columns[$columnName] = $definitions[$columnName];
             }
@@ -570,14 +618,14 @@ class Lists extends WidgetBase
      */
     protected function defineListColumns()
     {
-        if (!isset($this->config->columns) || !is_array($this->config->columns) || !count($this->config->columns)) {
+        if (!isset($this->columns) || !is_array($this->columns) || !count($this->columns)) {
             throw new ApplicationException(Lang::get(
                 'backend::lang.list.missing_columns',
                 ['class'=>get_class($this->controller)]
             ));
         }
 
-        $this->addColumns($this->config->columns);
+        $this->addColumns($this->columns);
 
         /*
          * Extensibility
@@ -591,19 +639,20 @@ class Lists extends WidgetBase
         if ($columnOrder = $this->getSession('order', null)) {
             $orderedDefinitions = [];
             foreach ($columnOrder as $column) {
-                if (isset($this->columns[$column])) {
-                    $orderedDefinitions[$column] = $this->columns[$column];
+                if (isset($this->allColumns[$column])) {
+                    $orderedDefinitions[$column] = $this->allColumns[$column];
                 }
             }
 
-            $this->columns = array_merge($orderedDefinitions, $this->columns);
+            $this->allColumns = array_merge($orderedDefinitions, $this->allColumns);
         }
 
-        return $this->columns;
+        return $this->allColumns;
     }
 
     /**
      * Programatically add columns, used internally and for extensibility.
+     * @param array $columns Column definitions
      */
     public function addColumns(array $columns)
     {
@@ -611,7 +660,18 @@ class Lists extends WidgetBase
          * Build a final collection of list column objects
          */
         foreach ($columns as $columnName => $config) {
-            $this->columns[$columnName] = $this->makeListColumn($columnName, $config);
+            $this->allColumns[$columnName] = $this->makeListColumn($columnName, $config);
+        }
+    }
+
+    /**
+     * Programatically remove a column, used for extensibility.
+     * @param string $column Column name
+     */
+    public function removeColumn($columnName)
+    {
+        if (isset($this->allColumns[$columnName])) {
+            unset($this->allColumns[$columnName]);
         }
     }
 
@@ -630,6 +690,18 @@ class Lists extends WidgetBase
             $label = studly_case($name);
         }
 
+        if (starts_with($name, 'pivot[') && strpos($name, ']') !== false) {
+            $_name = HtmlHelper::nameToArray($name);
+            $config['relation'] = array_shift($_name);
+            $config['valueFrom'] = array_shift($_name);
+            $config['searchable'] = false;
+        }
+        elseif (strpos($name, '[') !== false && strpos($name, ']') !== false) {
+            $config['valueFrom'] = $name;
+            $config['sortable'] = false;
+            $config['searchable'] = false;
+        }
+
         $columnType = isset($config['type']) ? $config['type'] : null;
 
         $column = new ListColumn($name, $label);
@@ -644,7 +716,7 @@ class Lists extends WidgetBase
      */
     protected function getTotalColumns()
     {
-        $columns = $this->visibleColumns ?: $this->getVisibleListColumns();
+        $columns = $this->visibleColumns ?: $this->getVisibleColumns();
         $total = count($columns);
         if ($this->showCheckboxes) {
             $total++;
@@ -695,8 +767,8 @@ class Lists extends WidgetBase
             elseif ($this->isColumnRelated($column, true)) {
                 $value = implode(', ', $record->{$columnName}->lists($column->valueFrom));
             }
-            elseif ($this->isColumnRelated($column)) {
-                $value = $record->{$columnName}->{$column->valueFrom};
+            elseif ($this->isColumnRelated($column) || $this->isColumnPivot($column)) {
+                $value = $record->{$columnName} ? $record->{$columnName}->{$column->valueFrom} : null;
             }
             else {
                 $value = null;
@@ -706,7 +778,11 @@ class Lists extends WidgetBase
          * Handle taking value from model attribute.
          */
         elseif ($column->valueFrom) {
-            $value = $record->{$column->valueFrom};
+            $keyParts = HtmlHelper::nameToArray($column->valueFrom);
+            $value = $record;
+            foreach ($keyParts as $key) {
+                $value = $value->{$key};
+            }
         }
         /*
          * Otherwise, if the column is a relation, it will be a custom select,
@@ -727,13 +803,20 @@ class Lists extends WidgetBase
         }
 
         /*
+         * Apply default value.
+         */
+        if ($value === '' || $value === null) {
+            $value = $column->defaults;
+        }
+
+        /*
          * Extensibility
          */
-        if ($response = Event::fire('backend.list.overrideColumnValue', [$this, $record, $column, $value], true)) {
+        if (($response = Event::fire('backend.list.overrideColumnValue', [$this, $record, $column, $value], true)) !== null) {
             $value = $response;
         }
 
-        if ($response = $this->fireEvent('list.overrideColumnValue', [$record, $column, $value], true)) {
+        if (($response = $this->fireEvent('list.overrideColumnValue', [$record, $column, $value], true)) !== null) {
             $value = $response;
         }
 
@@ -768,7 +851,15 @@ class Lists extends WidgetBase
     //
 
     /**
-     * Process as boolean switch
+     * Process as text, escape the value
+     */
+    protected function evalTextTypeValue($record, $column, $value)
+    {
+        return htmlentities($value, ENT_QUOTES, 'UTF-8', false);
+    }
+
+    /**
+     * Process as partial reference
      */
     protected function evalPartialTypeValue($record, $column, $value)
     {
@@ -787,8 +878,16 @@ class Lists extends WidgetBase
      */
     protected function evalSwitchTypeValue($record, $column, $value)
     {
-        // return ($value) ? '<i class="icon-check"></i>' : '<i class="icon-times"></i>';
-        return ($value) ? 'Yes' : 'No';
+        $contents = '';
+
+        if ($value) {
+            $contents = Lang::get('backend::lang.list.column_switch_true');
+        }
+        else {
+            $contents = Lang::get('backend::lang.list.column_switch_false');
+        }
+
+        return $contents;
     }
 
     /**
@@ -856,7 +955,21 @@ class Lists extends WidgetBase
 
         $value = $this->validateDateTimeValue($value, $column);
 
-        return $value->diffForHumans();
+        return DateTimeHelper::timeSince($value);
+    }
+
+    /**
+     * Process as time as current tense (Today at 0:00)
+     */
+    protected function evalTimetenseTypeValue($record, $column, $value)
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $value = $this->validateDateTimeValue($value, $column);
+
+        return DateTimeHelper::timeTense($value);
     }
 
     /**
@@ -864,9 +977,7 @@ class Lists extends WidgetBase
      */
     protected function validateDateTimeValue($value, $column)
     {
-        if ($value instanceof DateTime) {
-            $value = Carbon::instance($value);
-        }
+        $value = DateTimeHelper::instance()->makeCarbon($value, false);
 
         if (!$value instanceof Carbon) {
             throw new ApplicationException(Lang::get(
@@ -898,10 +1009,7 @@ class Lists extends WidgetBase
      */
     public function setSearchTerm($term)
     {
-        if (empty($term)) {
-            $this->showTree = $this->getConfig('showTree', $this->showTree);
-        }
-        else {
+        if (!empty($term)) {
             $this->showTree = false;
         }
 
@@ -958,7 +1066,7 @@ class Lists extends WidgetBase
             /*
              * Persist the page number
              */
-            App::make('paginator')->setCurrentPage(post('page'));
+            $this->currentPageNumber = post('page');
 
             return $this->onRefresh();
         }
@@ -1004,7 +1112,8 @@ class Lists extends WidgetBase
          * First available column
          */
         if ($this->sortColumn === null || !$this->isSortable($this->sortColumn)) {
-            $columns = $this->visibleColumns ?: $this->getVisibleListColumns();
+            $columns = $this->visibleColumns ?: $this->getVisibleColumns();
+            $columns = array_filter($columns, function($column){ return $column->sortable; });
             $this->sortColumn = key($columns);
             $this->sortDirection = 'desc';
         }
@@ -1035,15 +1144,9 @@ class Lists extends WidgetBase
         }
 
         $columns = $this->getColumns();
-        $sortable = [];
-
-        foreach ($columns as $column) {
-            if (!$column->sortable) {
-                continue;
-            }
-
-            $sortable[$column->columnName] = $column;
-        }
+        $sortable = array_filter($columns, function($column){
+            return $column->sortable;
+        });
 
         return $this->sortableColumns = $sortable;
     }
@@ -1105,7 +1208,7 @@ class Lists extends WidgetBase
             $column->invisible = true;
         }
 
-        return array_merge($columns, $this->getVisibleListColumns());
+        return array_merge($columns, $this->getVisibleColumns());
     }
 
     //
@@ -1170,7 +1273,7 @@ class Lists extends WidgetBase
      */
     protected function isColumnRelated($column, $multi = false)
     {
-        if (!isset($column->relation)) {
+        if (!isset($column->relation) || $this->isColumnPivot($column)) {
             return false;
         }
 
@@ -1196,5 +1299,19 @@ class Lists extends WidgetBase
             'attachMany',
             'hasManyThrough'
         ]);
+    }
+
+    /**
+     * Checks if a column refers to a pivot model specifically.
+     * @param  ListColumn  $column List column object
+     * @return boolean
+     */
+    protected function isColumnPivot($column)
+    {
+        if (!isset($column->relation) || $column->relation != 'pivot') {
+            return false;
+        }
+
+        return true;
     }
 }

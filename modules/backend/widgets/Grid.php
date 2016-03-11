@@ -6,6 +6,11 @@ use Backend\Classes\WidgetBase;
  * Grid Widget
  * Renders a search container used for viewing tabular data
  * 
+ * !!!
+ * !!! WARNING: This class and widget is scheduled for destruction.
+ * !!! Please use Table widget instead
+ * !!!
+ *
  * Supported options:
  *
  * - allowInsert
@@ -23,7 +28,7 @@ class Grid extends WidgetBase
     /**
      * {@inheritDoc}
      */
-    public $defaultAlias = 'grid';
+    protected $defaultAlias = 'grid';
 
     /**
      * @var array Grid columns
@@ -271,7 +276,7 @@ class Grid extends WidgetBase
     /**
      * {@inheritDoc}
      */
-    public function loadAssets()
+    protected function loadAssets()
     {
         $this->addCss('vendor/handsontable/jquery.handsontable.css', 'core');
         $this->addCss('css/datagrid.css', 'core');

@@ -9,7 +9,7 @@ use Backend\Models\UserPreferences;
  *
  * Usage:
  *
- * In the model class definition: 
+ * In the model class definition:
  *
  *   public $implement = ['Backend.Behaviors.UserPreferencesModel'];
  *   public $settingsCode = 'author.plugin::code';
@@ -27,7 +27,7 @@ class UserPreferencesModel extends SettingsModel
     {
         parent::__construct($model);
 
-        $this->model->table = 'backend_user_preferences';
+        $this->model->setTable('backend_user_preferences');
     }
 
     /**
@@ -62,7 +62,8 @@ class UserPreferencesModel extends SettingsModel
     public function getSettingsRecord()
     {
         $item = UserPreferences::forUser();
-        $record = $item->scopeFindRecord($this->model, $this->recordCode, $item->userContext)
+        $record = $item
+            ->scopeApplyKeyAndUser($this->model, $this->recordCode, $item->userContext)
             ->remember(1440, $this->getCacheKey())
             ->first();
 
@@ -108,6 +109,8 @@ class UserPreferencesModel extends SettingsModel
      */
     protected function getCacheKey()
     {
-        return 'backend::userpreferences.'.$this->recordCode;
+        $item = UserPreferences::forUser();
+        $userId = $item->userContext ? $item->userContext->id : 0;
+        return $this->recordCode.'-userpreference-'.$userId;
     }
 }

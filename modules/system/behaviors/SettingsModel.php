@@ -1,8 +1,9 @@
 <?php namespace System\Behaviors;
 
 use Cache;
+use DbDongle;
 use System\Classes\ModelBehavior;
-use System\Classes\ApplicationException;
+use ApplicationException;
 
 /**
  * Settings model extension
@@ -38,9 +39,9 @@ class SettingsModel extends ModelBehavior
     {
         parent::__construct($model);
 
-        $this->model->table = 'system_settings';
-        $this->model->jsonable = ['value'];
-        $this->model->guarded = [];
+        $this->model->setTable('system_settings');
+        $this->model->jsonable(['value']);
+        $this->model->guard([]);
         $this->model->timestamps = false;
 
         // Option A: (@todo Determine which is faster by benchmark)
@@ -62,7 +63,6 @@ class SettingsModel extends ModelBehavior
         /*
          * Parse the config
          */
-        $this->fieldConfig = $this->makeConfig($this->model->settingsFields);
         $this->recordCode = $this->model->settingsCode;
     }
 
@@ -100,7 +100,7 @@ class SettingsModel extends ModelBehavior
      */
     public function isConfigured()
     {
-        return $this->getSettingsRecord() !== null;
+        return DbDongle::hasDatabase() && $this->getSettingsRecord() !== null;
     }
 
     /**
@@ -124,7 +124,8 @@ class SettingsModel extends ModelBehavior
     {
         $data = is_array($key) ? $key : [$key => $value];
         $obj = self::instance();
-        return $obj->save($data);
+        $obj->fill($data);
+        return $obj->save();
     }
 
     /**
@@ -234,7 +235,11 @@ class SettingsModel extends ModelBehavior
      */
     public function getFieldConfig()
     {
-        return $this->fieldConfig;
+        if ($this->fieldConfig !== null) {
+            return $this->fieldConfig;
+        }
+
+        return $this->fieldConfig = $this->makeConfig($this->model->settingsFields);
     }
 
     /**

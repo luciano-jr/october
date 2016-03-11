@@ -1,3 +1,12 @@
+<?php if ($this->user->hasAccess('backend.manage_users')): ?>
+    <?php Block::put('breadcrumb') ?>
+        <ul>
+            <li><a href="<?= Backend::url('backend/users') ?>"><?= e(trans('backend::lang.user.menu_label')) ?></a></li>
+            <li><?= e(trans($this->pageTitle)) ?></li>
+        </ul>
+    <?php Block::endPut() ?>
+<?php endif ?>
+
 <?php if (!$this->fatalError): ?>
 
     <?php Block::put('form-contents') ?>
@@ -19,15 +28,17 @@
                         class="btn btn-primary">
                         <?= e(trans('backend::lang.form.save')) ?>
                     </button>
-                    <button
-                        type="button"
-                        data-request="onSave"
-                        data-request-data="close:1"
-                        data-hotkey="ctrl+enter, cmd+enter"
-                        data-load-indicator="<?= e(trans('backend::lang.form.saving')) ?>"
-                        class="btn btn-default">
-                        <?= e(trans('backend::lang.form.save_and_close')) ?>
-                    </button>
+                    <?php if ($this->user->hasAccess('backend.manage_users')): ?>
+                        <button
+                            type="button"
+                            data-request="onSave"
+                            data-request-data="close:1"
+                            data-hotkey="ctrl+enter, cmd+enter"
+                            data-load-indicator="<?= e(trans('backend::lang.form.saving')) ?>"
+                            class="btn btn-default">
+                            <?= e(trans('backend::lang.form.save_and_close')) ?>
+                        </button>
+                    <?php endif ?>
                 </div>
             </div>
 

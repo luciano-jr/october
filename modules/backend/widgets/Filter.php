@@ -1,11 +1,10 @@
 <?php namespace Backend\Widgets;
 
-use DB as Db;
+use Db;
 use Event;
 use Backend\Classes\WidgetBase;
 use Backend\Classes\FilterScope;
-use System\Classes\ApplicationException;
-use October\Rain\Support\Util;
+use ApplicationException;
 
 /**
  * Filter Widget
@@ -16,10 +15,29 @@ use October\Rain\Support\Util;
  */
 class Filter extends WidgetBase
 {
+    //
+    // Configurable properties
+    //
+
+    /**
+     * @var array Scope definition configuration.
+     */
+    public $scopes;
+
+    /**
+     * @var string The context of this filter, scopes that do not belong
+     * to this context will not be shown.
+     */
+    public $context = null;
+
+    //
+    // Object properties
+    //
+
     /**
      * {@inheritDoc}
      */
-    public $defaultAlias = 'filter';
+    protected $defaultAlias = 'filter';
 
     /**
      * @var boolean Determines if scope definitions have been created.
@@ -37,12 +55,6 @@ class Filter extends WidgetBase
     protected $scopeModels = [];
 
     /**
-     * @var string The context of this filter, scopes that do not belong
-     * to this context will not be shown.
-     */
-    protected $activeContext = null;
-
-    /**
      * @var array List of CSS classes to apply to the filter container element
      */
     public $cssClasses = [];
@@ -52,15 +64,10 @@ class Filter extends WidgetBase
      */
     public function init()
     {
-        $this->activeContext = $this->getConfig('context');
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function loadAssets()
-    {
-        $this->addJs('js/october.filter.js', 'core');
+        $this->fillFromConfig([
+            'scopes',
+            'context',
+        ]);
     }
 
     /**
@@ -126,7 +133,7 @@ class Filter extends WidgetBase
         $params = func_get_args();
         $result = $this->fireEvent('filter.update', [$params]);
         if ($result && is_array($result)) {
-            return Util::arrayMerge($result);
+            return call_user_func_array('array_merge', $result);
         }
     }
 
@@ -171,6 +178,10 @@ class Filter extends WidgetBase
      */
     protected function getAvailableOptions($scope, $searchQuery = null)
     {
+        if (count($scope->options)) {
+            return $scope->options;
+        }
+
         $available = [];
         $nameColumn = $this->getScopeNameColumn($scope);
         $options = $this->getOptionsFromModel($scope, $searchQuery);
@@ -208,12 +219,20 @@ class Filter extends WidgetBase
     protected function getOptionsFromModel($scope, $searchQuery = null)
     {
         $model = $this->scopeModels[$scope->scopeName];
+        $query = $model->newQuery();
+
+        /*
+         * Extensibility
+         */
+        Event::fire('backend.filter.extendQuery', [$this, $query, $scope]);
+        $this->fireEvent('filter.extendQuery', [$query, $scope]);
+
         if (!$searchQuery) {
-            return $model->all();
+            return $query->get();
         }
 
         $searchFields = [$model->getKeyName(), $this->getScopeNameColumn($scope)];
-        return $model->searchWhere($searchQuery, $searchFields)->get();
+        return $query->searchWhere($searchQuery, $searchFields)->get();
     }
 
     /**
@@ -234,11 +253,11 @@ class Filter extends WidgetBase
         /*
          * All scopes
          */
-        if (!isset($this->config->scopes) || !is_array($this->config->scopes)) {
-            $this->config->scopes = [];
+        if (!isset($this->scopes) || !is_array($this->scopes)) {
+            $this->scopes = [];
         }
 
-        $this->addScopes($this->config->scopes);
+        $this->addScopes($this->scopes);
 
         /*
          * Extensibility
@@ -311,6 +330,8 @@ class Filter extends WidgetBase
      */
     public function applyAllScopesToQuery($query)
     {
+        $this->defineFilterScopes();
+
         foreach ($this->allScopes as $scope) {
             $this->applyScopeToQuery($scope, $query);
         }
@@ -433,10 +454,11 @@ class Filter extends WidgetBase
 
     /**
      * Returns the active context for displaying the filter.
+     * @return string
      */
     public function getContext()
     {
-        return $this->activeContext;
+        return $this->context;
     }
 
     //

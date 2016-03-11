@@ -3,7 +3,7 @@
 use File;
 use Twig_Error;
 use Cms\Classes\SectionParser;
-use System\Classes\ApplicationException;
+use October\Rain\Exception\ApplicationException;
 use Exception;
 
 /**
@@ -16,7 +16,6 @@ use Exception;
  */
 class CmsException extends ApplicationException
 {
-
     /**
      * @var Cms\Classes\CmsCompoundObject A reference to a CMS object used for masking errors.
      */
@@ -154,7 +153,7 @@ class CmsException extends ApplicationException
                 $check = true;
             }
 
-            // Expected: */app/storage/cache/39/05/home.htm.php
+            // Expected: */storage/cms/cache/39/05/home.htm.php
             if (strpos($exception->getFile(), $this->compoundObject->getFileName() . '.php')) {
                 $check = true;
             }
@@ -195,7 +194,7 @@ class CmsException extends ApplicationException
      * Override properties of an exception specific to the Twig section
      * of a CMS object.
      * @param \Exception $exception The exception to modify.
-     * @return void
+     * @return bool
      */
     protected function processTwig(Exception $exception)
     {

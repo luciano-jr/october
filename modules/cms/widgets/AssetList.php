@@ -13,9 +13,8 @@ use Cms\Classes\Theme;
 use Cms\Classes\Asset;
 use Backend\Classes\WidgetBase;
 use System\Classes\PluginManager;
-use System\Classes\ApplicationException;
-use October\Rain\Support\Inflector;
-use October\Rain\Support\ValidationException;
+use ApplicationException;
+use ValidationException;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\File\MimeType\MimeTypeGuesser;
 use RecursiveIteratorIterator;
@@ -62,9 +61,11 @@ class AssetList extends WidgetBase
         'css',
         'js',
         'woff',
+        'woff2',
         'svg',
         'ttf',
         'eot',
+        'otf',
         'json',
         'md',
         'less',
@@ -86,7 +87,7 @@ class AssetList extends WidgetBase
     /**
      * {@inheritDoc}
      */
-    public function loadAssets()
+    protected function loadAssets()
     {
         $this->addCss('css/assetlist.css', 'core');
         $this->addJs('js/assetlist.js', 'core');
@@ -294,7 +295,7 @@ class AssetList extends WidgetBase
             throw new ApplicationException(Lang::get('cms::lang.asset.already_exists'));
         }
 
-        if (!@mkdir($newFullPath)) {
+        if (!File::makeDirectory($newFullPath)) {
             throw new ApplicationException(Lang::get(
                 'cms::lang.cms_object.error_creating_directory',
                 ['name' => $newName]
@@ -423,7 +424,7 @@ class AssetList extends WidgetBase
         $assetsPath = $this->getAssetsPath();
 
         if (!file_exists($assetsPath) || !is_dir($assetsPath)) {
-            if (!@mkdir($assetsPath)) {
+            if (!File::makeDirectory($assetsPath)) {
                 throw new ApplicationException(Lang::get(
                     'cms::lang.cms_object.error_creating_directory',
                     ['name'=>$assetsPath]

@@ -6,14 +6,14 @@ use Cms\Classes\Layout;
 use Cms\Classes\CodeParser;
 use Cms\Classes\Controller;
 
-class CodeParserTest extends TestCase 
+class CodeParserTest extends TestCase
 {
     public static function getProperty($name)
     {
         $class = new ReflectionClass('\Cms\Classes\CodeParser');
         $property = $class->getProperty($name);
         $property->setAccessible(true);
-     
+
         return $property;
     }
 
@@ -226,10 +226,10 @@ class CodeParserTest extends TestCase
         $this->assertEquals($expectedContent, file_get_contents($info['filePath']));
     }
 
-    public function testSyntaxErrors()
-    {
-        $this->markTestIncomplete('Test PHP parsing errors here.');
-    }
+    // public function testSyntaxErrors()
+    // {
+    //     $this->markTestIncomplete('Test PHP parsing errors here.');
+    // }
 
     public function testNamespaces()
     {
@@ -251,12 +251,24 @@ class CodeParserTest extends TestCase
         $obj = $parser->source($page, null, $controller);
         $this->assertInstanceOf('\Cms\Classes\PageCode', $obj);
 
-        $referenceFilePath = base_path().'/tests/fixtures/cms/reference/namespaces.php';
+        $referenceFilePath = base_path().'/tests/fixtures/cms/reference/namespaces.php.stub';
         $this->assertFileExists($referenceFilePath);
-        $referenceContents = file_get_contents($referenceFilePath);
+        $referenceContents = $this->getContents($referenceFilePath);
 
         $referenceContents = str_replace('{className}', $info['className'], $referenceContents);
 
-        $this->assertEquals($referenceContents, file_get_contents($info['filePath']));
+        $this->assertEquals($referenceContents, $this->getContents($info['filePath']));
     }
+
+   //
+   // Helpers
+   //
+
+   protected function getContents($path)
+   {
+        $content = file_get_contents($path);
+        $content = preg_replace('~\R~u', PHP_EOL, $content); // Normalize EOL
+        return $content;
+   }
+
 }
