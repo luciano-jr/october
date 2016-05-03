@@ -1900,8 +1900,7 @@ $(container).triggerHandler('dispose-control')}}
 $.oc.foundation.controlUtils=ControlUtils;$(document).on('ajaxBeforeReplace',function(ev){$.oc.foundation.controlUtils.disposeControls(ev.target)})}(window.jQuery);+function($){"use strict";var FlashMessage=function(options,el){var
 options=$.extend({},FlashMessage.DEFAULTS,options),$element=$(el)
 $('body > p.flash-message').remove()
-if($element.length==0)
-$element=$('<p/>').addClass(options.class).html(options.text)
+if($element.length==0){$element=$('<p/>').addClass(options.class).html(options.text)}
 $element.addClass('flash-message fade')
 $element.attr('data-control',null)
 $element.append('<button type="button" class="close" aria-hidden="true">&times;</button>')
@@ -1926,7 +1925,29 @@ return
 $cb.get(0).checked=!$cb.get(0).checked
 $cb.data('oc-space-timestamp',e.timeStamp)
 $cb.trigger('change')
-return false}})})(jQuery);+function($){"use strict";var BalloonSelector=function(element,options){this.$el=$(element)
+return false}})
+$(document).render(function(){$('div.custom-checkbox.is-indeterminate > input').each(function(){var $el=$(this),checked=$el.data('checked')
+switch(checked){case 1:$el.prop('indeterminate',true)
+break
+case 2:$el.prop('indeterminate',false)
+$el.prop('checked',true)
+break
+default:$el.prop('indeterminate',false)
+$el.prop('checked',false)}})})
+$(document).on('click','div.custom-checkbox.is-indeterminate > label',function(){var $el=$(this).parent().find('input:first'),checked=$el.data('checked')
+if(checked===undefined){checked=$el.is(':checked')?1:0}
+switch(checked){case 0:$el.data('checked',1)
+$el.prop('indeterminate',true)
+break
+case 1:$el.data('checked',2)
+$el.prop('indeterminate',false)
+$el.prop('checked',true)
+break
+default:$el.data('checked',0)
+$el.prop('indeterminate',false)
+$el.prop('checked',false)}
+$el.trigger('change')
+return false})})(jQuery);+function($){"use strict";var BalloonSelector=function(element,options){this.$el=$(element)
 this.$field=$('input',this.$el)
 this.options=options||{};var self=this;$('li',this.$el).click(function(){if(self.$el.hasClass('control-disabled'))
 return
@@ -2009,7 +2030,7 @@ this.$toolbar=$toolbar
 this.options=options||{};var noDragSupport=options.noDragSupport!==undefined&&options.noDragSupport
 Base.call(this)
 var scrollClassContainer=options.scrollClassContainer!==undefined?options.scrollClassContainer:$el.parent()
-$el.dragScroll({scrollClassContainer:scrollClassContainer,noDragSupport:noDragSupport})
+$el.dragScroll({scrollClassContainer:scrollClassContainer,useDrag:!noDragSupport})
 $('.form-control.growable',$toolbar).on('focus.toolbar',function(){update()})
 $('.form-control.growable',$toolbar).on('blur.toolbar',function(){update()})
 this.$el.one('dispose-control',this.proxy(this.dispose))
@@ -2077,9 +2098,10 @@ FilterWidget.prototype.getPopoverTemplate=function(){return'                    
                 </form>                                                                                 \
             '}
 FilterWidget.prototype.init=function(){var self=this
-this.$el.on('change','.filter-scope input[type="checkbox"]',function(){var isChecked=$(this).is(':checked'),$scope=$(this).closest('.filter-scope'),scopeName=$scope.data('scope-name')
-self.scopeValues[scopeName]=isChecked
-self.checkboxToggle(scopeName,isChecked)})
+this.$el.on('change','.filter-scope input[type="checkbox"]',function(){var $scope=$(this).closest('.filter-scope')
+if($scope.hasClass('is-indeterminate')){self.switchToggle($(this))}
+else{self.checkboxToggle($(this))}})
+$('.filter-scope input[type="checkbox"]',this.$el).each(function(){$(this).closest('.filter-scope').toggleClass('active',$(this).is(':checked'))})
 this.$el.on('click','a.filter-scope',function(){var $scope=$(this),scopeName=$scope.data('scope-name')
 if($scope.hasClass('filter-scope-open'))return
 self.$activeScope=$scope
@@ -2165,11 +2187,18 @@ return
 var $form=this.$el.closest('form'),data={scopeName:scopeName,options:this.scopeValues[scopeName]}
 $.oc.stripeLoadIndicator.show()
 $form.request(this.options.updateHandler,{data:data}).always(function(){$.oc.stripeLoadIndicator.hide()})}
-FilterWidget.prototype.checkboxToggle=function(scopeName,isChecked){if(!this.options.updateHandler)
-return
-var $form=this.$el.closest('form'),data={scopeName:scopeName,value:isChecked}
+FilterWidget.prototype.checkboxToggle=function($el){var isChecked=$el.is(':checked'),$scope=$el.closest('.filter-scope'),scopeName=$scope.data('scope-name')
+this.scopeValues[scopeName]=isChecked
+if(this.options.updateHandler){var $form=this.$el.closest('form'),data={scopeName:scopeName,value:isChecked}
 $.oc.stripeLoadIndicator.show()
 $form.request(this.options.updateHandler,{data:data}).always(function(){$.oc.stripeLoadIndicator.hide()})}
+$scope.toggleClass('active',isChecked)}
+FilterWidget.prototype.switchToggle=function($el){var switchValue=$el.data('checked'),$scope=$el.closest('.filter-scope'),scopeName=$scope.data('scope-name')
+this.scopeValues[scopeName]=switchValue
+if(this.options.updateHandler){var $form=this.$el.closest('form'),data={scopeName:scopeName,value:switchValue}
+$.oc.stripeLoadIndicator.show()
+$form.request(this.options.updateHandler,{data:data}).always(function(){$.oc.stripeLoadIndicator.hide()})}
+$scope.toggleClass('active',!!switchValue)}
 var old=$.fn.filterWidget
 $.fn.filterWidget=function(option){var args=arguments,result
 this.each(function(){var $this=$(this)
@@ -2260,10 +2289,11 @@ $(window).off('.cursorLoadIndicator');}}
 $(document).ready(function(){$.oc.cursorLoadIndicator=new CursorLoadIndicator();})
 $(document).on('ajaxPromise','[data-cursor-load-indicator]',function(){$.oc.cursorLoadIndicator.show()}).on('ajaxFail ajaxDone','[data-cursor-load-indicator]',function(){$.oc.cursorLoadIndicator.hide()})}(window.jQuery);+function($){"use strict";if($.oc===undefined)
 $.oc={}
-var StripeLoadIndicator=function(){this.counter=0
+var StripeLoadIndicator=function(){var self=this
+this.counter=0
 this.indicator=$('<div/>').addClass('stripe-loading-indicator loaded').append($('<div />').addClass('stripe')).append($('<div />').addClass('stripe-loaded'))
 this.stripe=this.indicator.find('.stripe')
-$(document.body).append(this.indicator)}
+$(document).ready(function(){$(document.body).append(self.indicator)})}
 StripeLoadIndicator.prototype.show=function(){this.counter++
 this.stripe.after(this.stripe=this.stripe.clone()).remove()
 if(this.counter>1)
@@ -2275,7 +2305,7 @@ if(force!==undefined&&force)
 this.counter=0
 if(this.counter<=0){this.indicator.addClass('loaded')
 $(document.body).removeClass('loading')}}
-$(document).ready(function(){$.oc.stripeLoadIndicator=new StripeLoadIndicator()})
+$.oc.stripeLoadIndicator=new StripeLoadIndicator()
 $(document).on('ajaxPromise','[data-stripe-load-indicator]',function(event){event.stopPropagation()
 $.oc.stripeLoadIndicator.show()
 var $el=$(this)
@@ -2684,9 +2714,12 @@ var tr=this.$el.prop('tagName')=='TR'?this.$el:this.$el.find('tr:has(td)')
 tr.each(function(){var link=$(this).find(options.target).filter(function(){return!$(this).closest('td').hasClass(options.excludeClass)&&!$(this).hasClass(options.excludeClass)}).first()
 if(!link.length)return
 var href=link.attr('href'),onclick=(typeof link.get(0).onclick=="function")?link.get(0).onclick:null
-$(this).find('td').not('.'+options.excludeClass).click(function(){if(onclick)
+$(this).find('td').not('.'+options.excludeClass).click(function(e){if($(document.body).hasClass('drag'))
+return
+if(onclick)
 onclick.apply(link.get(0))
-else
+else if(e.ctrlKey)
+window.open(href);else
 window.location=href;})
 $(this).addClass(options.linkedClass)
 link.hide().after(link.html())})}
@@ -2784,9 +2817,7 @@ this.keyConditions=null
 this.keyMap=null
 this.options=null
 BaseProto.dispose.call(this)}
-HotKey.prototype.init=function(){if(this.options.hotkeyMac)
-this.options.hotkey+=', '+this.options.hotkeyMac
-this.initKeyMap()
+HotKey.prototype.init=function(){this.initKeyMap()
 var keys=this.options.hotkey.toLowerCase().split(',')
 for(var i=0,len=keys.length;i<len;i++){var keysTrimmed=this.trim(keys[i])
 this.keyConditions.push(this.makeCondition(keysTrimmed))}
@@ -2816,7 +2847,7 @@ HotKey.prototype.onKeyDown=function(ev){if(this.testConditions(ev)){if(this.opti
 return
 if(this.options.callback)
 return this.options.callback(this.$el,ev.currentTarget)}}
-HotKey.DEFAULTS={hotkey:null,hotkeyMac:null,hotkeyTarget:'html',hotkeyVisible:true,callback:function(element){element.trigger('click')
+HotKey.DEFAULTS={hotkey:null,hotkeyTarget:'html',hotkeyVisible:true,callback:function(element){element.trigger('click')
 return false}}
 var old=$.fn.hotKey
 $.fn.hotKey=function(option){var args=arguments;return this.each(function(){var $this=$(this)
@@ -3044,18 +3075,25 @@ var DragScroll=function(element,options){this.options=$.extend({},DragScroll.DEF
 var
 $el=$(element),el=$el.get(0),dragStart=0,startOffset=0,self=this,dragging=false,eventElementName=this.options.vertical?'pageY':'pageX';this.el=$el
 this.scrollClassContainer=this.options.scrollClassContainer?$(this.options.scrollClassContainer):$el
+this.isScrollable=true
 Base.call(this)
 if(this.options.scrollMarkerContainer){$(this.options.scrollMarkerContainer).append($('<span class="before scroll-marker"></span><span class="after scroll-marker"></span>'))}
-$el.mousewheel(function(event){if(!self.options.allowScroll)
-return;var offset=self.options.vertical?((event.deltaFactor*event.deltaY)*-1):(event.deltaFactor*event.deltaX)
+var $scrollSelect=this.options.scrollSelector?$(this.options.scrollSelector,$el):$el
+$scrollSelect.mousewheel(function(event){if(!self.options.useScroll)
+return;var offset,offsetX=event.deltaFactor*event.deltaX,offsetY=event.deltaFactor*event.deltaY
+if(!offsetX&&self.options.useComboScroll){offset=offsetY*-1}
+else if(!offsetY&&self.options.useComboScroll){offset=offsetX}
+else{offset=self.options.vertical?(offsetY*-1):offsetX}
 return!scrollWheel(offset)})
-if(!options.noDragSupport){$el.on('mousedown.dragScroll',function(event){if(event.target&&event.target.tagName==='INPUT')
+if(this.options.useDrag){$el.on('mousedown.dragScroll',this.options.dragSelector,function(event){if(event.target&&event.target.tagName==='INPUT')
+return
+if(!self.isScrollable)
 return
 startDrag(event)
 return false})}
-$el.on('touchstart.dragScroll',function(event){var touchEvent=event.originalEvent;if(touchEvent.touches.length==1){startDrag(touchEvent.touches[0])
+$el.on('touchstart.dragScroll',this.options.dragSelector,function(event){var touchEvent=event.originalEvent;if(touchEvent.touches.length==1){startDrag(touchEvent.touches[0])
 event.stopPropagation()}})
-$el.on('click.dragScroll',function(){if($(document.body).hasClass('drag'))
+$el.on('click.dragScroll',function(){if($(document.body).hasClass(self.options.dragClass))
 return false})
 $(document).on('ready',this.proxy(this.fixScrollClasses))
 $(window).on('resize',this.proxy(this.fixScrollClasses))
@@ -3066,7 +3104,6 @@ moveDrag(touchEvent.touches[0])
 event.preventDefault()})
 $(window).on('touchend.dragScroll',function(event){stopDrag()})}
 else{$(window).on('mousemove.dragScroll',function(event){moveDrag(event)
-$(document.body).addClass(self.options.dragClass)
 return false})
 $(window).on('mouseup.dragScroll',function(mouseUpEvent){var isClick=event.pageX==mouseUpEvent.pageX&&event.pageY==mouseUpEvent.pageY
 stopDrag(isClick)
@@ -3074,15 +3111,14 @@ return false})}}
 function moveDrag(event){var current=event[eventElementName],offset=dragStart-current
 if(Math.abs(offset)>2){if(!dragging){dragging=true
 $el.trigger('start.oc.dragScroll')
-self.options.start();}
+self.options.start()
+$(document.body).addClass(self.options.dragClass)}
 self.options.vertical?$el.scrollTop(startOffset+offset):$el.scrollLeft(startOffset+offset)
 $el.trigger('drag.oc.dragScroll')
 self.options.drag()}}
 function stopDrag(click){$(window).off('.dragScroll')
-dragging=false;if(click)
-$(document.body).removeClass(self.options.dragClass)
-else
-self.fixScrollClasses()
+dragging=false;if(click){$(document.body).removeClass(self.options.dragClass)}
+else{self.fixScrollClasses()}
 window.setTimeout(function(){if(!click){$(document.body).removeClass(self.options.dragClass)
 $el.trigger('stop.oc.dragScroll')
 self.options.stop()
@@ -3098,34 +3134,25 @@ return scrolled}
 this.fixScrollClasses();}
 DragScroll.prototype=Object.create(BaseProto)
 DragScroll.prototype.constructor=DragScroll
-DragScroll.DEFAULTS={vertical:false,allowScroll:true,scrollClassContainer:false,scrollMarkerContainer:false,dragClass:'drag',noDragSupport:false,start:function(){},drag:function(){},stop:function(){}}
-DragScroll.prototype.fixScrollClasses=function(){this.scrollClassContainer.toggleClass('scroll-before',!this.isStart())
-this.scrollClassContainer.toggleClass('scroll-after',!this.isEnd())
+DragScroll.DEFAULTS={vertical:false,useDrag:true,useScroll:true,useComboScroll:true,scrollClassContainer:false,scrollMarkerContainer:false,scrollSelector:null,dragSelector:null,dragClass:'drag',start:function(){},drag:function(){},stop:function(){}}
+DragScroll.prototype.fixScrollClasses=function(){var isStart=this.isStart(),isEnd=this.isEnd()
+this.scrollClassContainer.toggleClass('scroll-before',!isStart)
+this.scrollClassContainer.toggleClass('scroll-after',!isEnd)
 this.scrollClassContainer.toggleClass('scroll-active-before',this.isActiveBefore())
-this.scrollClassContainer.toggleClass('scroll-active-after',this.isActiveAfter())}
-DragScroll.prototype.isStart=function(){if(!this.options.vertical)
-return this.el.scrollLeft()<=0;else
-return this.el.scrollTop()<=0;}
-DragScroll.prototype.isEnd=function(){if(!this.options.vertical)
-return(this.el[0].scrollWidth-(this.el.scrollLeft()+this.el.width()))<=0
-else
-return(this.el[0].scrollHeight-(this.el.scrollTop()+this.el.height()))<=0}
-DragScroll.prototype.goToStart=function(){if(!this.options.vertical)
-return this.el.scrollLeft(0)
-else
-return this.el.scrollTop(0)}
-DragScroll.prototype.isActiveAfter=function(){var activeElement=$('.active',this.el);if(activeElement.length==0)
-return false
-if(!this.options.vertical)
-return activeElement.get(0).offsetLeft>(this.el.scrollLeft()+this.el.width())
-else
-return activeElement.get(0).offsetTop>(this.el.scrollTop()+this.el.height())}
-DragScroll.prototype.isActiveBefore=function(){var activeElement=$('.active',this.el);if(activeElement.length==0)
-return false
-if(!this.options.vertical)
-return(activeElement.get(0).offsetLeft+activeElement.width())<this.el.scrollLeft()
-else
-return(activeElement.get(0).offsetTop+activeElement.height())<this.el.scrollTop()}
+this.scrollClassContainer.toggleClass('scroll-active-after',this.isActiveAfter())
+this.isScrollable=!isStart||!isEnd}
+DragScroll.prototype.isStart=function(){if(!this.options.vertical){return this.el.scrollLeft()<=0;}
+else{return this.el.scrollTop()<=0;}}
+DragScroll.prototype.isEnd=function(){if(!this.options.vertical){return(this.el[0].scrollWidth-(this.el.scrollLeft()+this.el.width()))<=0}
+else{return(this.el[0].scrollHeight-(this.el.scrollTop()+this.el.height()))<=0}}
+DragScroll.prototype.goToStart=function(){if(!this.options.vertical){return this.el.scrollLeft(0)}
+else{return this.el.scrollTop(0)}}
+DragScroll.prototype.isActiveAfter=function(){var activeElement=$('.active',this.el);if(activeElement.length==0){return false}
+if(!this.options.vertical){return activeElement.get(0).offsetLeft>(this.el.scrollLeft()+this.el.width())}
+else{return activeElement.get(0).offsetTop>(this.el.scrollTop()+this.el.height())}}
+DragScroll.prototype.isActiveBefore=function(){var activeElement=$('.active',this.el);if(activeElement.length==0){return false}
+if(!this.options.vertical){return(activeElement.get(0).offsetLeft+activeElement.width())<this.el.scrollLeft()}
+else{return(activeElement.get(0).offsetTop+activeElement.height())<this.el.scrollTop()}}
 DragScroll.prototype.goToElement=function(element,callback,options){var $el=$(element)
 if(!$el.length)
 return;var self=this,params={duration:300,queue:false,complete:function(){self.fixScrollClasses()
@@ -3403,8 +3430,7 @@ for(var i=0,len=this.parsedProperties.properties.length;i<len;i++){var property=
 if(property.itemType=='group'){currentGroup=this.getGroupManager().createGroup(property.groupIndex,this.group)}
 else{if(property.groupIndex===undefined){currentGroup=this.group}}
 var row=this.buildRow(property,currentGroup)
-if(property.itemType=='group')
-{this.applyGroupLevelToRow(row,currentGroup.parentGroup)}
+if(property.itemType=='group'){this.applyGroupLevelToRow(row,currentGroup.parentGroup)}
 else{this.applyGroupLevelToRow(row,currentGroup)}
 tbody.appendChild(row)
 this.buildEditor(row,property,dataTable,currentGroup)}
@@ -3477,7 +3503,8 @@ var groupLevel=group.getLevel()
 row.setAttribute('data-group-level',groupLevel)
 th.children[0].style.marginLeft=groupLevel*10+'px'}
 Surface.prototype.toggleGroup=function(row,forceExpand){var link=row.querySelector('a'),groupIndex=row.getAttribute('data-group-index'),table=this.getRootTable(),groupManager=this.getGroupManager(),collapse=true
-if($.oc.foundation.element.hasClass(link,'expanded')&&!forceExpand){$.oc.foundation.element.removeClass(link,'expanded')}else{$.oc.foundation.element.addClass(link,'expanded')
+if($.oc.foundation.element.hasClass(link,'expanded')&&!forceExpand){$.oc.foundation.element.removeClass(link,'expanded')}
+else{$.oc.foundation.element.addClass(link,'expanded')
 collapse=false}
 var propertyRows=groupManager.findGroupRows(table,groupIndex,!collapse),duration=Math.round(50/propertyRows.length)
 this.expandOrCollapseRows(propertyRows,collapse,duration,forceExpand)
@@ -3611,7 +3638,7 @@ if(!editor.validate(silentMode)){if(!silentMode){editor.markInvalid()}
 return false}}
 return true}
 Surface.prototype.hasChanges=function(originalValues){var values=originalValues!==undefined?originalValues:this.originalValues
-return!this.comparePropertyValues(values,this.values)}
+return!this.comparePropertyValues(values,this.getValues())}
 Surface.prototype.onGroupClick=function(ev){var row=ev.currentTarget
 this.toggleGroup(row)
 $.oc.foundation.event.stop(ev)
@@ -4248,7 +4275,7 @@ this.inspector.setPropertyValue(this.propertyDefinition.property,this.normalizeV
 DropdownEditor.prototype.onInspectorPropertyChanged=function(property,value){if(!this.propertyDefinition.depends||this.propertyDefinition.depends.indexOf(property)===-1){return}
 var dependencyValues=this.getDependencyValues()
 if(this.prevDependencyValues===undefined||this.prevDependencyValues!=dependencyValues){this.loadDynamicOptions()}}
-DropdownEditor.prototype.onExternalPropertyEditorHidden=function(){this.loadDynamicOptions(false)}
+DropdownEditor.prototype.onExternalPropertyEditorHidden=function(){if(this.dynamicOptions){this.loadDynamicOptions(false)}}
 DropdownEditor.prototype.updateDisplayedValue=function(value){var select=this.getSelect()
 select.value=value}
 DropdownEditor.prototype.getUndefinedValue=function(){if(this.propertyDefinition.default!==undefined){return this.propertyDefinition.default}
@@ -4332,7 +4359,7 @@ PopupBase.prototype.getPopupContent=function(){return'<form>                    
                 </div>                                                                                  \
                 <div class="modal-footer">                                                              \
                     <button type="submit" class="btn btn-primary">OK</button>                           \
-                    <button type="button" class="btn btn-default" data-dismiss="popup">Cancel</button>   \
+                    <button type="button" class="btn btn-default" data-dismiss="popup">Cancel</button>  \
                 </div>                                                                                  \
                 </form>'}
 PopupBase.prototype.updateDisplayedValue=function(value){this.setLinkText(this.getLink(),value)}
@@ -4390,7 +4417,7 @@ TextEditor.prototype.getPopupContent=function(){return'<form>                   
                 </div>                                                                                  \
                 <div class="modal-footer">                                                              \
                     <button type="submit" class="btn btn-primary">OK</button>                           \
-                    <button type="button" class="btn btn-default" data-dismiss="popup">Cancel</button>   \
+                    <button type="button" class="btn btn-default" data-dismiss="popup">Cancel</button>  \
                 </div>                                                                                  \
                 </form>'}
 TextEditor.prototype.configureComment=function(popup){if(!this.propertyDefinition.description){return}
@@ -4597,7 +4624,7 @@ ObjectListEditor.prototype.getPopupContent=function(){return'<form>             
                 </div>                                                                                  \
                 <div class="modal-footer">                                                              \
                     <button type="submit" class="btn btn-primary">OK</button>                           \
-                    <button type="button" class="btn btn-default" data-dismiss="popup">Cancel</button>   \
+                    <button type="button" class="btn btn-default" data-dismiss="popup">Cancel</button>  \
                 </div>                                                                                  \
                 </form>'}
 ObjectListEditor.prototype.buildPopupContents=function(popup){this.buildItemsTable(popup)}
@@ -4781,7 +4808,7 @@ ObjectEditor.prototype.getUndefinedValue=function(){var result={}
 for(var i=0,len=this.propertyDefinition.properties.length;i<len;i++){var propertyName=this.propertyDefinition.properties[i].property,editor=this.childInspector.findPropertyEditor(propertyName)
 if(editor){result[propertyName]=editor.getUndefinedValue()}}
 return this.getValueOrRemove(result)}
-ObjectEditor.prototype.validate=function(silentMode){var values=values=this.childInspector.getValues()
+ObjectEditor.prototype.validate=function(silentMode){var values=this.childInspector.getValues()
 if(this.cleanUpValue(values)===$.oc.inspector.removedProperty){return true}
 return this.childInspector.validate(silentMode)}
 ObjectEditor.prototype.onInspectorDataChange=function(property,value){var values=this.childInspector.getValues()
@@ -5065,7 +5092,7 @@ DictionaryEditor.prototype.getPopupContent=function(){return'<form>             
                 </div>                                                                                  \
                 <div class="modal-footer">                                                              \
                     <button type="submit" class="btn btn-primary">OK</button>                           \
-                    <button type="button" class="btn btn-default" data-dismiss="popup">Cancel</button>   \
+                    <button type="button" class="btn btn-default" data-dismiss="popup">Cancel</button>  \
                 </div>                                                                                  \
                 </form>'}
 DictionaryEditor.prototype.configurePopup=function(popup){this.buildItemsTable(popup.get(0))
@@ -5450,8 +5477,11 @@ link.setAttribute('data-original-title',this.tooltipText)
 this.getInput().setAttribute('tabindex','-1')
 this.toggleEditorVisibility(true)
 setTimeout(this.proxy(this.hideEditor),200)}
-ExternalParameterEditor.prototype.toggleEditorVisibility=function(show){var container=this.getContainer(),children=container.children,height=19
-if(!show){}
+ExternalParameterEditor.prototype.toggleEditorVisibility=function(show){var container=this.getContainer(),children=container.children,height=0
+if(!show){height=this.containerCell.getAttribute('data-inspector-cell-height')
+if(!height){height=$(this.containerCell).height()
+this.containerCell.setAttribute('data-inspector-cell-height',height)}}
+height=Math.max(height,19)
 for(var i=0,len=children.length;i<len;i++){var element=children[i]
 if($.oc.foundation.element.hasClass(element,'external-editor')){continue}
 if(show){$.oc.foundation.element.removeClass(element,'hide')}

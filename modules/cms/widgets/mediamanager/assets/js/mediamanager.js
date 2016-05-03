@@ -728,11 +728,23 @@
 
         var uploaderOptions = {
             clickable: this.$el.find('[data-control="upload"]').get(0),
-            method: 'POST',
-            url: window.location,
+            url: this.options.url,
             paramName: 'file_data',
+            headers: {},
             createImageThumbnails: false
             // fallback: implement method that would set a flag that the uploader is not supported by the browser
+        }
+
+        if (this.options.uniqueId) {
+            uploaderOptions.headers['X-OCTOBER-FILEUPLOAD'] = this.options.uniqueId
+        }
+
+        /*
+         * Add CSRF token to headers
+         */
+        var token = $('meta[name="csrf-token"]').attr('content')
+        if (token) {
+            uploaderOptions.headers['X-CSRF-TOKEN'] = token
         }
 
         this.dropzone = new Dropzone(this.$el.get(0), uploaderOptions)
@@ -802,7 +814,6 @@
 
     MediaManager.prototype.uploadSending = function(file, xhr, formData) {
         formData.append('path', this.$el.find('[data-type="current-folder"]').val())
-        formData.append('X_OCTOBER_FILEUPLOAD', this.options.uniqueId)
     }
 
     MediaManager.prototype.uploadCancelAll = function() {
@@ -1264,10 +1275,11 @@
     // ============================
 
     MediaManager.DEFAULTS = {
+        url: window.location,
         alias: '',
         uniqueId: null,
         deleteEmpty: 'Please select files to delete.',
-        deleteConfirm: 'Do you really want to delete the selected file(s)?',
+        deleteConfirm: 'Delete the selected file(s)?',
         moveEmpty: 'Please select files to move.',
         selectSingleImage: 'Please select a single image.',
         selectionNotImage: 'The selected item is not an image.',
